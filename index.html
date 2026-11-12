@@ -1,0 +1,1618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Pick trails in Far North Bicentennial Park and get the shortest route that covers them all.">
+<style>body{margin:0}img{max-width:100%}</style>
+</head>
+<body>
+<title>Bicentennial Trail Planner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-height tool. Control panel on the left (bottom sheet on phones), canvas map fills the rest. */
+:root{
+  --bg:#eef1ec; --panel:#fbfcfa; --raised:#ffffff; --fg:#17201b; --muted:#5b6961; --faint:#8a978f;
+  --line:#d9dfd8; --line-strong:#b9c3bb; --accent:#d9480f; --accent-ink:#ffffff; --accent-soft:#fde6db;
+  --map-bg:#e9ede6; --map-grid:rgba(40,60,50,.07); --casing:#ffffff; --map-ink:#1c2621;
+  --t-winter:#2563c9; --t-summer-single:#8b3fd1; --t-summer-double:#c92a2a; --t-summer-only:#e67700;
+  --t-ski:#2b9a3e; --t-dog:#d6336c; --t-mush:#5c6670; --t-other:#7a7a7a;
+  --ok:#2b8a3e; --warn:#e8a200; --bad:#d6336c; --info:#7048e8;
+  --font-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1412; --panel:#141a17; --raised:#1a211d; --fg:#e4eae6; --muted:#9aa8a0; --faint:#6f7d75;
+  --line:#26302b; --line-strong:#38443e; --accent:#ff7a3d; --accent-ink:#1a0d05; --accent-soft:#3a2117;
+  --map-bg:#121815; --map-grid:rgba(200,230,215,.05); --casing:#0b0f0d; --map-ink:#e4eae6;
+  --t-winter:#5b9bff; --t-summer-single:#b07cff; --t-summer-double:#ff6b6b; --t-summer-only:#ffa94d;
+  --t-ski:#51cf66; --t-dog:#f783ac; --t-mush:#a3acb5; --t-other:#9a9a9a;
+  --ok:#51cf66; --warn:#ffd43b; --bad:#f783ac; --info:#9775fa; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1412; --panel:#141a17; --raised:#1a211d; --fg:#e4eae6; --muted:#9aa8a0; --faint:#6f7d75;
+  --line:#26302b; --line-strong:#38443e; --accent:#ff7a3d; --accent-ink:#1a0d05; --accent-soft:#3a2117;
+  --map-bg:#121815; --map-grid:rgba(200,230,215,.05); --casing:#0b0f0d; --map-ink:#e4eae6;
+  --t-winter:#5b9bff; --t-summer-single:#b07cff; --t-summer-double:#ff6b6b; --t-summer-only:#ffa94d;
+  --t-ski:#51cf66; --t-dog:#f783ac; --t-mush:#a3acb5; --t-other:#9a9a9a;
+  --ok:#51cf66; --warn:#ffd43b; --bad:#f783ac; --info:#9775fa; color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--font-body);overflow:hidden}
+*{box-sizing:border-box}
+button,input,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:380px 1fr;height:100%;min-height:0}
+.panel{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;min-width:0}
+.panel-head{padding-block:14px 0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px}
+.brand{display:grid;gap:4px}
+.brand h1{font:700 26px/1 var(--font-display);letter-spacing:.01em;margin:0;text-transform:uppercase;text-wrap:balance}
+.brand .net{font:12px var(--font-mono);color:var(--muted);white-space:nowrap}
+.tabs{display:flex;gap:2px;margin-top:12px;border-bottom:1px solid var(--line)}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:8px 10px;font:600 15px var(--font-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.tab .count{font:500 11px var(--font-mono);background:var(--accent-soft);color:var(--accent);border-radius:9px;padding:1px 6px;margin-left:4px;letter-spacing:0}
+.panel-body{overflow-y:auto;flex:1;min-height:0;padding-block:6px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px}
+section.step{padding-block:14px;border-bottom:1px solid var(--line);display:grid;gap:10px}
+section.step:last-child{border-bottom:0}
+.step-h{display:flex;align-items:baseline;gap:8px;justify-content:space-between}
+.step-h h2{margin:0;font:600 17px/1.1 var(--font-display);letter-spacing:.06em;text-transform:uppercase}
+.step-h .n{font:500 12px var(--font-mono);color:var(--faint);margin-right:2px}
+.hint{color:var(--muted);font-size:12.5px;margin:0}
+.kbd{font:11px var(--font-mono);border:1px solid var(--line-strong);border-radius:4px;padding:0 4px;color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:7px;overflow:hidden}
+.seg button{border:0;background:var(--raised);padding:6px 10px;cursor:pointer;font-size:13px;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line-strong)}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--panel)}
+.btn{border:1px solid var(--line-strong);background:var(--raised);border-radius:7px;padding:6px 11px;cursor:pointer;font-size:13px;display:inline-flex;gap:6px;align-items:center}
+.btn:hover{border-color:var(--fg)}
+.btn:disabled{opacity:.45;cursor:default;border-color:var(--line-strong)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted);padding-inline:6px}
+.btn.ghost:hover{color:var(--fg)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sel-summary{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.sel-summary .big{font:600 22px/1 var(--font-display)}
+.sel-summary .big small{font:500 12px var(--font-mono);color:var(--muted);margin-left:4px}
+.types{display:grid;gap:2px}
+.type-row{display:grid;grid-template-columns:18px 14px 1fr auto;gap:8px;align-items:center;padding:5px 6px;border-radius:6px;cursor:pointer;user-select:none}
+.type-row:hover{background:var(--raised)}
+.swatch{width:14px;height:4px;border-radius:2px}
+.type-row .mi{font:12px var(--font-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.check{width:16px;height:16px;border:1.5px solid var(--line-strong);border-radius:4px;display:grid;place-items:center;background:var(--raised)}
+.check[data-state="all"]{background:var(--fg);border-color:var(--fg)}
+.check[data-state="all"]::after{content:"";width:8px;height:4px;border:2px solid var(--panel);border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+.check[data-state="some"]::after{content:"";width:8px;height:2px;background:var(--fg)}
+.search{width:100%;border:1px solid var(--line-strong);background:var(--raised);border-radius:7px;padding:7px 10px}
+.names{max-height:210px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:var(--raised)}
+.name-row{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--line)}
+.name-row:last-child{border-bottom:0}
+.name-row:hover{background:var(--bg)}
+.name-row .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.name-row .mi{font:12px var(--font-mono);color:var(--muted)}
+.dots{display:inline-flex;gap:2px;margin-right:4px;vertical-align:middle}
+.dots i{width:6px;height:6px;border-radius:50%;display:inline-block}
+.field{display:grid;gap:4px}
+.field label{font-size:12px;color:var(--muted)}
+.inp{border:1px solid var(--line-strong);background:var(--raised);border-radius:7px;padding:6px 8px;width:92px;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+select.inp{width:auto}
+.toggle{display:grid;grid-template-columns:18px 1fr;gap:10px;align-items:start;cursor:pointer}
+.toggle input{width:16px;height:16px;margin:2px 0 0;accent-color:var(--accent)}
+.toggle b{font-weight:600}
+.optional-note{font-size:12.5px;color:var(--muted)}
+.optional-note b{color:var(--fg);font-weight:600}
+.result{display:grid;gap:12px}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stat{background:var(--raised);padding:9px 11px;display:grid;gap:1px;min-width:0}
+.stat .k{font:600 11.5px var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font:600 26px/1.05 var(--font-display);font-variant-numeric:tabular-nums}
+.stat .v small{font:500 12px var(--font-mono);color:var(--muted);margin-left:3px}
+.stat .s{font:11.5px var(--font-mono);color:var(--muted)}
+.stat.hero{grid-column:1/-1;display:flex;align-items:end;justify-content:space-between;gap:12px}
+.stat.hero .v{font-size:40px}
+.eff{display:grid;gap:3px;justify-items:end}
+.eff-bar{width:110px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;display:flex}
+.eff-bar i{display:block;height:100%}
+.profile-wrap{background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:10px 10px 6px}
+.profile-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.profile-head .k{font:600 12px var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.readout{font:12px var(--font-mono);color:var(--fg);font-variant-numeric:tabular-nums}
+svg.profile{width:100%;height:150px;display:block;touch-action:none;cursor:crosshair}
+.legend-strip{display:flex;gap:12px;font-size:11.5px;color:var(--muted);flex-wrap:wrap;margin-top:4px}
+.legend-strip i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.player{display:flex;gap:8px;align-items:center}
+.player input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+.legs{display:grid;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--raised)}
+.leg{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);cursor:pointer}
+.leg:last-child{border-bottom:0}
+.leg:hover,.leg.cur{background:var(--bg)}
+.leg .at{font:12px var(--font-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.leg .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leg .d{font:12px var(--font-mono);font-variant-numeric:tabular-nums;text-align:right}
+.tag{font:600 10.5px var(--font-display);letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px}
+.tag.new{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.tag.repeat{background:color-mix(in srgb,var(--warn) 22%,transparent);color:color-mix(in srgb,var(--warn) 70%,var(--fg))}
+.tag.link{background:var(--line);color:var(--muted)}
+.empty{border:1px dashed var(--line-strong);border-radius:10px;padding:14px;color:var(--muted);font-size:13px}
+.err{border:1px solid color-mix(in srgb,var(--bad) 50%,transparent);background:color-mix(in srgb,var(--bad) 10%,transparent);border-radius:8px;padding:9px 11px;font-size:13px}
+/* data check */
+.issue-cats{display:grid;gap:6px}
+.cat{display:grid;grid-template-columns:22px 1fr auto auto;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--raised);cursor:pointer;text-align:left}
+.cat[aria-pressed="false"]{opacity:.55}
+.cat .ic{width:18px;height:18px;display:grid;place-items:center}
+.cat .t{font-weight:600}
+.cat .t small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.cat .c{font:600 22px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.issues{display:grid;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--raised)}
+.issue{display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);cursor:pointer;text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%}
+.issue:last-child{border-bottom:0}
+.issue:hover,.issue.cur{background:var(--bg)}
+.issue .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.issue .nm small{color:var(--muted)}
+.issue .d{font:12px var(--font-mono);color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%}
+.drop{border:1.5px dashed var(--line-strong);border-radius:10px;padding:12px;text-align:center;color:var(--muted);font-size:13px}
+.drop.over{border-color:var(--accent);color:var(--fg);background:var(--accent-soft)}
+/* map */
+.map{position:relative;min-width:0;min-height:0;background:var(--map-bg);overflow:hidden}
+canvas#map{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
+canvas#map.dragging{cursor:grabbing}
+canvas#map.lasso{cursor:crosshair}
+canvas#map.pick{cursor:copy}
+.toolbar{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:12px;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 24px)}
+.tool{background:var(--raised);border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;display:inline-flex;gap:6px;align-items:center;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.tool[aria-pressed="true"]{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+.tool svg{width:15px;height:15px}
+.zoom{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));top:calc(12px + env(safe-area-inset-top,0px));display:grid;gap:6px}
+.zoom .tool{width:34px;height:34px;justify-content:center;padding:0;font-size:18px}
+.scale{position:absolute;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));font:11px var(--font-mono);color:var(--map-ink);display:grid;gap:2px;pointer-events:none}
+.scale .bar{height:6px;border:1.5px solid var(--map-ink);border-top:0}
+.attrib{position:absolute;right:calc(6px + env(safe-area-inset-right,0px));bottom:calc(4px + env(safe-area-inset-bottom,0px));font-size:10px;color:var(--muted);background:color-mix(in srgb,var(--panel) 75%,transparent);padding:1px 5px;border-radius:4px;pointer-events:none}
+.banner{position:absolute;left:50%;transform:translateX(-50%);top:calc(56px + env(safe-area-inset-top,0px));background:var(--fg);color:var(--panel);border-radius:8px;padding:7px 12px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.18);display:flex;gap:10px;align-items:center;max-width:calc(100% - 24px)}
+.banner button{background:none;border:1px solid currentColor;border-radius:6px;color:inherit;padding:2px 8px;cursor:pointer;font-size:12px}
+.tip{position:absolute;pointer-events:none;background:var(--raised);border:1px solid var(--line-strong);border-radius:7px;padding:6px 9px;font-size:12.5px;box-shadow:0 4px 14px rgba(0,0,0,.15);max-width:260px;z-index:5}
+.tip b{display:block;font-weight:600}
+.tip span{font:11.5px var(--font-mono);color:var(--muted)}
+.busy{position:absolute;right:58px;top:calc(14px + env(safe-area-inset-top,0px));font:12px var(--font-mono);background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(0,52%)}
+  .map{grid-row:1}
+  .panel{grid-row:2;border-right:0;border-top:1px solid var(--line)}
+  .panel-head{padding-block:10px 0;padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .panel-body{padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+  .brand h1{font-size:22px}
+  .scale{bottom:12px}
+}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="app">
+  <aside class="panel" aria-label="Route planner controls">
+    <div class="panel-head">
+      <div class="brand"><h1>Bicentennial Trail Planner</h1><span class="net" id="netinfo"></span></div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-plan" aria-selected="true" aria-controls="pane-plan">Plan a route</button>
+        <button class="tab" role="tab" id="tab-check" aria-selected="false" aria-controls="pane-check">Data check<span class="count" id="issue-count">0</span></button>
+      </div>
+    </div>
+
+    <div class="panel-body" id="pane-plan" role="tabpanel" aria-labelledby="tab-plan">
+      <section class="step">
+        <div class="step-h"><h2><span class="n">1</span>Pick trails</h2>
+          <div class="row" style="gap:2px">
+            <button class="btn ghost" id="undo" title="Undo selection change">Undo</button>
+            <button class="btn ghost" id="invert">Invert</button>
+            <button class="btn ghost" id="clear">Clear</button>
+          </div></div>
+        <div class="sel-summary"><div><div class="big" id="sel-mi">0.00<small>mi</small></div><div class="hint" id="sel-n">nothing selected</div></div>
+          <div class="field"><label for="clickmode">A click selects</label>
+            <div class="seg" id="clickmode"><button aria-pressed="true" data-v="seg">One piece</button><button aria-pressed="false" data-v="trail">Whole trail</button></div></div></div>
+        <p class="hint">Click trails on the map, or use <b>Lasso</b> to grab an area. On a computer, <span class="kbd">Shift</span>+drag lassos to add and <span class="kbd">Alt</span>+drag lassos to remove.</p>
+        <div class="types" id="types"></div>
+        <input class="search" id="search" type="search" placeholder="Find a trail by name…" autocomplete="off">
+        <div class="names" id="names"></div>
+      </section>
+
+      <section class="step">
+        <div class="step-h"><h2><span class="n">2</span>Route rules</h2></div>
+        <label class="toggle" for="allow-links"><input type="checkbox" id="allow-links" checked><span><b>Use link trails</b><br><span class="hint">Lets the route borrow trails you didn't pick to get between yours. Turn off when other trails are closed or off-limits; the route then stays on your picks only.</span></span></label>
+        <div class="row">
+          <div class="field"><label for="opt-val">Selected pieces shorter than</label>
+            <div class="row" style="gap:6px"><input class="inp" id="opt-val" type="number" min="0" step="any" value="0"><select class="inp" id="opt-unit"><option value="ft">ft</option><option value="m">m</option><option value="mi">mi</option></select></div></div>
+        </div>
+        <p class="optional-note" id="opt-note">are only run if they happen to be on the way. Set 0 to require everything.</p>
+      </section>
+
+      <section class="step">
+        <div class="step-h"><h2><span class="n">3</span>Start and finish</h2></div>
+        <div class="row">
+          <button class="btn" id="pick-start"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="var(--ok)"/></svg><span id="start-label">Choose start on map</span></button>
+          <button class="btn ghost" id="clear-start" hidden>Let the planner choose</button>
+        </div>
+        <div class="seg" id="endmode"><button aria-pressed="true" data-v="loop">Back to start</button><button aria-pressed="false" data-v="anywhere">End anywhere</button><button aria-pressed="false" data-v="point">Pick a finish</button></div>
+        <div class="row" id="end-row" hidden><button class="btn" id="pick-end"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2" fill="var(--bad)"/></svg><span id="end-label">Choose finish on map</span></button></div>
+        <div class="row"><div class="field"><label for="pace">Pace (min per mile)</label><input class="inp" id="pace" type="text" value="11:00" inputmode="numeric"></div></div>
+      </section>
+
+      <section class="step" id="result-sec">
+        <div class="step-h"><h2><span class="n">4</span>Route</h2><span class="hint" id="solve-time"></span></div>
+        <div id="result"><div class="empty">Pick at least one trail and the shortest route that covers all of it appears here and on the map.</div></div>
+      </section>
+    </div>
+
+    <div class="panel-body" id="pane-check" role="tabpanel" aria-labelledby="tab-check" hidden>
+      <section class="step">
+        <p class="hint" style="margin:0">Things in the trail data that are worth a look in ArcGIS Pro. Click any issue to zoom to it. Tap a category to show or hide it on the map.</p>
+        <div class="issue-cats" id="cats"></div>
+      </section>
+      <section class="step">
+        <div class="step-h"><h2>Issues</h2><span class="hint" id="issue-filter-note"></span></div>
+        <div class="issues" id="issues"></div>
+      </section>
+      <section class="step">
+        <div class="step-h"><h2>Tolerances</h2><button class="btn" id="rerun">Re-check</button></div>
+        <div class="row">
+          <div class="field"><label for="tol-overlap">Overlap within (m)</label><input class="inp" id="tol-overlap" type="number" value="4" min="1" step="0.5"></div>
+          <div class="field"><label for="tol-run">Shortest overlap (m)</label><input class="inp" id="tol-run" type="number" value="20" min="4" step="1"></div>
+          <div class="field"><label for="tol-gap">Gap search (m)</label><input class="inp" id="tol-gap" type="number" value="15" min="1" step="1"></div>
+          <div class="field"><label for="tol-sliver">Close junctions under (m)</label><input class="inp" id="tol-sliver" type="number" value="5" min="0.5" step="0.5"></div>
+        </div>
+        <div class="row"><button class="btn" id="export-issues">Download issues for ArcGIS</button></div>
+        <p class="hint">Saves a GeoJSON of every issue (points and lines). In Pro, run <b>JSON To Features</b> on it to get a layer to work through.</p>
+      </section>
+      <section class="step">
+        <div class="step-h"><h2>Load updated trails</h2></div>
+        <label class="drop" id="drop" for="file">Drop a new <b>Features To JSON</b> export here (GeoJSON, WGS 1984), or tap to choose a file. The planner and the check both rebuild from it. The file stays in this browser tab only.</label>
+        <input id="file" type="file" accept=".geojson,.json,application/geo+json,application/json" hidden>
+        <p class="hint" id="data-source"></p>
+      </section>
+    </div>
+  </aside>
+
+  <div class="map" id="mapwrap">
+    <canvas id="map" aria-label="Trail map"></canvas>
+    <div class="toolbar">
+      <button class="tool" id="lasso-add" aria-pressed="false" title="Draw around trails to add them"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 9c-1.5-3 1-6.5 5-6.5S14 5 13 8.5 7.5 13 5.5 11.5"/><path d="M5.5 11.5 4 14.5"/></svg>Lasso</button>
+      <button class="tool" id="lasso-rem" aria-pressed="false" title="Draw around trails to remove them"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 9c-1.5-3 1-6.5 5-6.5S14 5 13 8.5 7.5 13 5.5 11.5"/><path d="M10.5 12.5h5"/></svg>Erase</button>
+      <button class="tool" id="fit" title="Zoom to all trails">Fit</button>
+      <button class="tool" id="basemap" aria-pressed="true" title="Show or hide the topo basemap" hidden>Topo</button>
+    </div>
+    <div class="zoom"><button class="tool" id="zin" aria-label="Zoom in">+</button><button class="tool" id="zout" aria-label="Zoom out">−</button></div>
+    <div class="attrib" id="attrib" hidden>Basemap: Esri, USGS, OpenStreetMap contributors</div>
+    <div class="scale" id="scale"><span id="scale-l"></span><div class="bar" id="scale-bar"></div></div>
+    <div class="banner" id="banner" hidden><span id="banner-t"></span><button id="banner-x">Cancel</button></div>
+    <div class="tip" id="tip" hidden></div>
+    <div class="busy" id="busy" hidden>Planning…</div>
+  </div>
+</div>
+
+<script>
+const TRAIL_DATA = null;
+const STANDALONE = true; // true for the GitHub Pages build: loads trails.geojson and shows a topo basemap
+</script>
+<script>
+"use strict";
+// ======================================================================
+//  Utilities
+// ======================================================================
+const $ = id => document.getElementById(id);
+const M_PER_MI = 1609.344, FT_PER_M = 3.28084;
+const fmtMi = m => (m / M_PER_MI).toFixed(m / M_PER_MI < 10 ? 2 : 1);
+const fmtFt = m => Math.round(m * FT_PER_M).toLocaleString();
+const fmtLen = m => m < 300 ? Math.round(m * FT_PER_M) + ' ft' : fmtMi(m) + ' mi';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const TYPE_INFO = {
+  Winter_singletracks: ['Winter singletrack', '--t-winter'],
+  Summer_single_tracks: ['Summer singletrack', '--t-summer-single'],
+  Summer_double_tracks: ['Summer double track', '--t-summer-double'],
+  Summer_only: ['Summer only', '--t-summer-only'],
+  Ski_trails: ['Ski trail', '--t-ski'],
+  Summer_Dog: ['Summer dog trail', '--t-dog'],
+  Dog_mushing: ['Dog mushing', '--t-mush'],
+};
+const typeLabel = t => (TYPE_INFO[t] || [t ? t.replace(/_/g, ' ') : 'Other'])[0];
+const typeVar = t => (TYPE_INFO[t] || [0, '--t-other'])[1];
+
+// ======================================================================
+//  Network: snap vertices, split every trail at every junction
+// ======================================================================
+function parseGeoJSON(gj) {
+  const feats = [];
+  const pick = (p, ...keys) => { for (const k of keys) for (const kk in p) if (kk.toLowerCase() === k.toLowerCase() && p[kk] != null && String(p[kk]).trim() !== '') return String(p[kk]).trim(); return ''; };
+  for (const f of gj.features || []) {
+    const g = f.geometry; if (!g) continue;
+    const parts = g.type === 'MultiLineString' ? g.coordinates : g.type === 'LineString' ? [g.coordinates] : null;
+    if (!parts) continue;
+    const p = f.properties || {};
+    const stride = parts.every(pt => pt.every(c => c.length >= 3 && c[2] != null)) ? 3 : 2;
+    feats.push([pick(p, 'Label'), pick(p, 'Name'), pick(p, 'Trail_Type'), stride, parts.map(pt => pt.flatMap(c => c.slice(0, stride)))]);
+  }
+  if (!feats.length) throw new Error('No line features found in that file.');
+  return undensify(feats);
+}
+// Interpolate Shape without "Interpolate Vertices Only" adds a vertex every ~1 m. Those extra vertices sit on straight lines
+// between the real ones, so drop any vertex within 2 cm of the line between its neighbours, but always keep line ends and
+// any vertex that another line (or part) also passes through, so junctions survive.
+function undensify(feats) {
+  undensify.last = null;
+  const lat = feats[0][4][0][1], KX = 111320 * Math.cos(lat * Math.PI / 180), KY = 110540;
+  const sp = []; for (const f of feats) for (const a of f[4]) { const st = f[3]; for (let k = st * 7; k < a.length; k += st * 7) sp.push(Math.hypot((a[k] - a[k - st]) * KX, (a[k + 1] - a[k - st + 1]) * KY)); }
+  sp.sort((x, y) => x - y); if (!sp.length || sp[sp.length >> 1] >= 2) return feats;
+  const key = (a, k) => Math.round(a[k] * 1e7) + ',' + Math.round(a[k + 1] * 1e7), uses = new Map();
+  for (const f of feats) for (const a of f[4]) { const st = f[3], seen = new Set(); for (let k = 0; k < a.length; k += st) seen.add(key(a, k));
+    for (const q of seen) uses.set(q, (uses.get(q) || 0) + 1); for (const k of [0, a.length - st]) { const q = key(a, k); uses.set(q, uses.get(q) + 1); } }
+  let before = 0, after = 0;
+  for (const f of feats) { const st = f[3]; f[4] = f[4].map(a => {
+    const n = a.length / st; before += n; const keep = [0];
+    for (let i = 1; i < n - 1; i++) { const k = i * st, j = keep[keep.length - 1] * st, m = (i + 1) * st;
+      const ax = a[j] * KX, ay = a[j + 1] * KY, bx = a[k] * KX, by = a[k + 1] * KY, cx = a[m] * KX, cy = a[m + 1] * KY;
+      const dx = cx - ax, dy = cy - ay, L = Math.hypot(dx, dy), t = L ? ((bx - ax) * dx + (by - ay) * dy) / (L * L) : 0;
+      const off = L === 0 || t < 0 || t > 1 ? Infinity : Math.abs((bx - ax) * dy - (by - ay) * dx) / L;
+      if (uses.get(key(a, k)) > 1 || off > 0.02) keep.push(i); }
+    keep.push(n - 1); after += keep.length; return keep.flatMap(i => a.slice(i * st, i * st + st)); }); }
+  undensify.last = { before, after, spacing: sp[sp.length >> 1] };
+  return feats;
+}
+
+function buildNetwork(raw, SNAP = 1.0) {
+  // features
+  let lat0 = 0, cnt = 0;
+  for (const f of raw) for (const part of f[4]) { lat0 += part[1]; cnt++; }
+  lat0 /= cnt;
+  const KX = 111320 * Math.cos(lat0 * Math.PI / 180), KY = 110540;
+  const features = raw.map((f, i) => {
+    const [label, name, type, stride] = f;
+    const display = label || name || 'Unnamed trail';
+    return { id: i, label, name, type, display, hasZ: stride === 3,
+      parts: f[4].map(arr => { const pts = []; for (let k = 0; k + 1 < arr.length; k += stride) pts.push([arr[k] * KX, arr[k + 1] * KY, stride === 3 ? arr[k + 2] : null]); return pts; }) };
+  });
+  const hasZ = features.every(f => f.hasZ);
+  // snap
+  const nodes = [], cell = new Map();
+  const key = (cx, cy) => cx * 1e6 + cy;
+  function nodeOf(p) {
+    const cx = Math.floor(p[0] / SNAP), cy = Math.floor(p[1] / SNAP);
+    let best = -1, bd = Infinity;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const l = cell.get(key(cx + dx, cy + dy)); if (!l) continue;
+      for (const id of l) { const q = nodes[id], d = Math.hypot(p[0] - q.x, p[1] - q.y); if (d <= SNAP && d < bd) { bd = d; best = id; } }
+    }
+    if (best >= 0) return best;
+    nodes.push({ x: p[0], y: p[1], z: p[2] }); const k = key(cx, cy);
+    if (!cell.has(k)) cell.set(k, []); cell.get(k).push(nodes.length - 1); return nodes.length - 1;
+  }
+  // one edge per vertex pair: trails digitised on the same vertices share the edge (and list every trail on it)
+  const edges = [], seen = new Map();
+  for (const f of features) for (const pts of f.parts) {
+    const ids = pts.map(nodeOf);
+    for (let i = 0; i + 1 < ids.length; i++) {
+      const u = ids[i], v = ids[i + 1]; if (u === v) continue;
+      const k = Math.min(u, v) + ':' + Math.max(u, v);
+      if (seen.has(k)) { const e = edges[seen.get(k)]; if (!e[2].includes(f.id)) e[2].push(f.id); continue; }
+      seen.set(k, edges.length); edges.push([u, v, [f.id]]);
+    }
+  }
+  edges.forEach(e => { e[2].sort((a, b) => a - b); e[3] = e[2].join(','); });
+  const adj = nodes.map(() => []);
+  edges.forEach((e, i) => { adj[e[0]].push(i); adj[e[1]].push(i); });
+  const isJ = n => adj[n].length !== 2 || edges[adj[n][0]][3] !== edges[adj[n][1]][3];
+  const used = new Uint8Array(edges.length), chains = [];
+  function walk(start, ei) {
+    const path = [start], fid = edges[ei][2]; let cur = start;
+    for (;;) {
+      used[ei] = 1; const e = edges[ei]; const nx = e[0] === cur ? e[1] : e[0]; path.push(nx); cur = nx;
+      if (isJ(cur)) break;
+      const nxt = adj[cur].find(k => !used[k]); if (nxt === undefined) break; ei = nxt;
+    }
+    return [fid, path];
+  }
+  for (let n = 0; n < nodes.length; n++) if (adj[n].length && isJ(n)) for (const ei of adj[n]) if (!used[ei]) chains.push(walk(n, ei));
+  for (let ei = 0; ei < edges.length; ei++) if (!used[ei]) chains.push(walk(edges[ei][0], ei));
+  // compact junctions
+  const jmap = new Map(), J = [];
+  const jid = n => { if (!jmap.has(n)) { jmap.set(n, J.length); J.push({ x: nodes[n].x, y: nodes[n].y, segs: [] }); } return jmap.get(n); };
+  const segs = chains.map(([fid, path], id) => {
+    const xs = new Float64Array(path.length), ys = new Float64Array(path.length), cum = new Float64Array(path.length);
+    const zs = hasZ ? new Float64Array(path.length) : null;
+    path.forEach((n, i) => { xs[i] = nodes[n].x; ys[i] = nodes[n].y; if (zs) zs[i] = nodes[n].z; if (i) cum[i] = cum[i - 1] + Math.hypot(xs[i] - xs[i - 1], ys[i] - ys[i - 1]); });
+    const a = jid(path[0]), b = jid(path[path.length - 1]);
+    const fids = fid; const names = [...new Set(fids.map(i => features[i].display))];
+    const s = { id, fid: fids[0], fids, name: names.join(' / '), shared: fids.length > 1, a, b, xs, ys, zs, cum, len: cum[path.length - 1], gainF: 0, lossF: 0,
+      minx: Math.min(...xs), maxx: Math.max(...xs), miny: Math.min(...ys), maxy: Math.max(...ys) };
+    if (zs) { const [g, l] = climb(zs); s.gainF = g; s.lossF = l; }
+    J[a].segs.push(id); if (b !== a) J[b].segs.push(id);
+    return s;
+  });
+  // spatial index of sub-edges
+  const GRID = 40, grid = new Map();
+  segs.forEach(s => { for (let i = 0; i + 1 < s.xs.length; i++) {
+    const x0 = Math.floor(Math.min(s.xs[i], s.xs[i + 1]) / GRID), x1 = Math.floor(Math.max(s.xs[i], s.xs[i + 1]) / GRID);
+    const y0 = Math.floor(Math.min(s.ys[i], s.ys[i + 1]) / GRID), y1 = Math.floor(Math.max(s.ys[i], s.ys[i + 1]) / GRID);
+    for (let gx = x0; gx <= x1; gx++) for (let gy = y0; gy <= y1; gy++) { const k = key(gx, gy); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(s.id * 100000 + i); }
+  } });
+  function nearestSeg(x, y, r, filter) {
+    let best = null;
+    const gx0 = Math.floor((x - r) / GRID), gx1 = Math.floor((x + r) / GRID), gy0 = Math.floor((y - r) / GRID), gy1 = Math.floor((y + r) / GRID);
+    for (let gx = gx0; gx <= gx1; gx++) for (let gy = gy0; gy <= gy1; gy++) {
+      const l = grid.get(key(gx, gy)); if (!l) continue;
+      for (const code of l) {
+        const sid = Math.floor(code / 100000), i = code % 100000; if (filter && !filter(sid)) continue;
+        const s = segs[sid]; const r2 = projSeg(x, y, s.xs[i], s.ys[i], s.xs[i + 1], s.ys[i + 1]);
+        if (r2.d <= r && (!best || r2.d < best.d)) best = { d: r2.d, seg: sid, i, t: r2.t, px: r2.px, py: r2.py, along: s.cum[i] + r2.t * (s.cum[i + 1] - s.cum[i]) };
+      }
+    }
+    return best;
+  }
+  function segsNear(x, y, r, filter, out) {
+    const gx0 = Math.floor((x - r) / GRID), gx1 = Math.floor((x + r) / GRID), gy0 = Math.floor((y - r) / GRID), gy1 = Math.floor((y + r) / GRID);
+    for (let gx = gx0; gx <= gx1; gx++) for (let gy = gy0; gy <= gy1; gy++) {
+      const l = grid.get(key(gx, gy)); if (!l) continue;
+      for (const code of l) { const sid = Math.floor(code / 100000); if (out.has(sid) || !filter(sid)) continue; const i = code % 100000, s = segs[sid];
+        if (projSeg(x, y, s.xs[i], s.ys[i], s.xs[i + 1], s.ys[i + 1]).d <= r) out.add(sid); }
+    }
+  }
+  const bounds = { minx: Math.min(...segs.map(s => s.minx)), maxx: Math.max(...segs.map(s => s.maxx)), miny: Math.min(...segs.map(s => s.miny)), maxy: Math.max(...segs.map(s => s.maxy)) };
+  const toLL = (x, y) => [x / KX, y / KY];
+  const lat0deg = lat0;
+  const sp = []; for (const f of features) for (const pts of f.parts) for (let i = 1; i < pts.length; i += 7) sp.push(Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  sp.sort((a, b) => a - b);
+  return { lat0: lat0deg, vertexSpacing: sp[sp.length >> 1] || 10, features, segs, nodes: J, hasZ, nearestSeg, segsNear, bounds, toLL, KX, KY, total: segs.reduce((t, s) => t + s.len, 0) };
+}
+function projSeg(x, y, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1, L2 = dx * dx + dy * dy;
+  const t = L2 ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / L2)) : 0;
+  const px = x1 + t * dx, py = y1 + t * dy; return { d: Math.hypot(x - px, y - py), t, px, py };
+}
+function climb(zs) { // gain/loss with 1 m hysteresis to ignore noise
+  let gain = 0, loss = 0, ref = zs[0];
+  for (let i = 1; i < zs.length; i++) { const d = zs[i] - ref; if (d >= 1) { gain += d; ref = zs[i]; } else if (d <= -1) { loss -= d; ref = zs[i]; } }
+  return [gain, loss];
+}
+
+// ======================================================================
+//  Data check (QA)
+// ======================================================================
+function runChecks(net, tol) {
+  const issues = [];
+  const { segs, nodes } = net;
+  const deg = nodes.map(n => n.segs.reduce((t, s) => t + (segs[s].a === segs[s].b ? 2 : 1), 0));
+  const nameOf = s => segs[s].name;
+  // shared paths (several trails on the same vertices): joined correctly, reported for information
+  { const done = new Set();
+    for (const s of segs) { if (!s.shared || done.has(s.id)) continue; const key = s.fids.join(','); const run = [s.id]; done.add(s.id); const st = [s.a, s.b];
+      while (st.length) { const n = st.pop(); for (const q of nodes[n].segs) { const t = segs[q]; if (!done.has(q) && t.shared && t.fids.join(',') === key) { done.add(q); run.push(q); st.push(t.a, t.b); } } }
+      const L = run.reduce((t, i) => t + segs[i].len, 0); const mid = segs[run[Math.floor(run.length / 2)]];
+      issues.push({ kind: 'shared', segs: run, len: L, x: mid.xs[mid.xs.length >> 1], y: mid.ys[mid.ys.length >> 1],
+        title: `${s.fids.map(i => net.features[i].display).filter((v, i, a) => a.indexOf(v) === i).join(' + ')} share this path`, detail: 'Joined correctly on shared vertices. The planner counts it once.' }); } }
+  // dead ends + near-miss gaps
+  nodes.forEach((n, i) => {
+    if (deg[i] !== 1) return;
+    const own = n.segs[0];
+    const hit = net.nearestSeg(n.x, n.y, tol.gap, sid => sid !== own && segs[sid].a !== i && segs[sid].b !== i);
+    if (hit && hit.d > 0.05) issues.push({ kind: 'gap', x: n.x, y: n.y, x2: hit.px, y2: hit.py, len: hit.d, segs: [own, hit.seg],
+      title: `${nameOf(own)} stops ${hit.d.toFixed(1)} m short of ${nameOf(hit.seg)}`, detail: 'Likely missing junction: snap or extend the end vertex.' });
+    else issues.push({ kind: 'dead', x: n.x, y: n.y, len: 0, segs: [own], title: `${nameOf(own)} dead-ends`, detail: 'Fine if it is a real trailhead or an out-and-back spur.' });
+  });
+  // overlaps between different segments
+  const STEP = 4, pairRuns = new Map();
+  for (const s of segs) {
+    if (s.len < tol.run) continue;
+    const n = Math.floor(s.len / STEP); let active = new Map(); // other seg -> [startD, lastD]
+    const flush = (t, run) => { if (run[1] - run[0] + STEP >= tol.run) { const k = Math.min(s.id, t) + ':' + Math.max(s.id, t); const prev = pairRuns.get(k);
+      const L = run[1] - run[0] + STEP; if (!prev || L > prev.len) pairRuns.set(k, { a: s.id, b: t, d0: run[0], d1: run[1], len: L }); } };
+    for (let k = 1; k < n; k++) {
+      const d = k * STEP; if (d < 12 || s.len - d < 12) continue;
+      const [x, y] = pointAt(s, d);
+      const near = new Set();
+      // all segments within tolerance, excluding itself and neighbours close to a shared junction
+      net.segsNear(x, y, tol.overlap, sid => {
+        if (sid === s.id) return false;
+        const t = segs[sid];
+        for (const shared of [s.a, s.b]) if (t.a === shared || t.b === shared) { const nd = nodes[shared]; if (Math.hypot(x - nd.x, y - nd.y) < 30) return false; }
+        return true;
+      }, near);
+      for (const [t, run] of active) if (!near.has(t)) { flush(t, run); active.delete(t); }
+      for (const t of near) { if (active.has(t)) active.get(t)[1] = d; else active.set(t, [d, d]); }
+    }
+    for (const [t, run] of active) flush(t, run);
+  }
+  for (const r of pairRuns.values()) {
+    const s = segs[r.a], t = segs[r.b];
+    issues.push({ kind: 'overlap', seg: r.a, d0: r.d0, d1: r.d1, len: r.len, segs: [r.a, r.b],
+      title: `${nameOf(r.a)} runs on top of ${nameOf(r.b)}`, detail: net.features[s.fid].type === net.features[t.fid].type ? 'Same trail type: probably a duplicate line.' : `${typeLabel(net.features[s.fid].type)} and ${typeLabel(net.features[t.fid].type)} share this path but are not joined.` });
+  }
+  // double-backs inside one feature
+  for (const f of net.features) {
+    const pts = []; let along = 0;
+    f.parts.forEach(part => { part.forEach((p, i) => { if (i) along += Math.hypot(p[0] - part[i - 1][0], p[1] - part[i - 1][1]); pts.push([p[0], p[1], along]); }); along += 1000; });
+    if (pts.length < 3) continue;
+    // local index of this feature's edges
+    const G = 25, grid = new Map(), k2 = (a, b) => a * 1e6 + b;
+    for (let i = 0; i + 1 < pts.length; i++) { if (pts[i + 1][2] - pts[i][2] > 999) continue;
+      // index the edge in every cell its (padded) bounding box touches, so long straight edges are found too
+      const x0 = Math.floor((Math.min(pts[i][0], pts[i + 1][0]) - tol.overlap) / G), x1 = Math.floor((Math.max(pts[i][0], pts[i + 1][0]) + tol.overlap) / G);
+      const y0 = Math.floor((Math.min(pts[i][1], pts[i + 1][1]) - tol.overlap) / G), y1 = Math.floor((Math.max(pts[i][1], pts[i + 1][1]) + tol.overlap) / G);
+      for (let gx = x0; gx <= x1; gx++) for (let gy = y0; gy <= y1; gy++) { const kk = k2(gx, gy); if (!grid.has(kk)) grid.set(kk, []); grid.get(kk).push(i); } }
+    let run = null; const total = pts[pts.length - 1][2]; let ei = 0;
+    const flush = () => { if (run && run.d1 - run.d0 + STEP >= tol.run) issues.push({ kind: 'double', fid: f.id, pts: run.pts, len: run.d1 - run.d0 + STEP, segs: [],
+      title: `${f.display} doubles back on itself`, detail: 'An out-and-back in the GPS track. Keep one line and delete the return.' }); run = null; };
+    for (let d = 0; d < total; d += STEP) {
+      while (ei + 1 < pts.length - 1 && pts[ei + 1][2] < d) ei++;
+      const a = pts[ei], b = pts[ei + 1]; if (b[2] - a[2] > 999) { flush(); continue; }
+      const t = (d - a[2]) / (b[2] - a[2] || 1), x = a[0] + t * (b[0] - a[0]), y = a[1] + t * (b[1] - a[1]);
+      const l = grid.get(k2(Math.floor(x / G), Math.floor(y / G))) || [];
+      let hit = false;
+      for (const j of l) { const p = pts[j], q = pts[j + 1];
+        // skip the stretch of line the sample sits on: any edge whose span along the track comes within 60 m of this point
+        if (d >= p[2] - 60 && d <= q[2] + 60) continue;
+        if (p[2] < d) continue; // only look ahead along the track, so each out-and-back is reported once (on the outbound leg)
+        if (projSeg(x, y, p[0], p[1], q[0], q[1]).d <= tol.overlap) { hit = true; break; } }
+      if (hit) { if (!run) run = { d0: d, d1: d, pts: [] }; run.d1 = d; run.pts.push([x, y]); } else flush();
+    }
+    flush();
+  }
+  // slivers
+  for (const s of segs) if (s.len < tol.sliver && s.a !== s.b) issues.push({ kind: 'sliver', seg: s.id, x: (s.xs[0] + s.xs[s.xs.length - 1]) / 2, y: (s.ys[0] + s.ys[s.ys.length - 1]) / 2, len: s.len, segs: [s.id],
+    title: `Junctions ${s.len.toFixed(1)} m apart on ${nameOf(s.id)}`, detail: 'Trails meet at two neighbouring vertices instead of one. Routing is fine; tidy only if you want one clean junction.' });
+  // disconnected pieces
+  const comp = new Int32Array(nodes.length).fill(-1); let nc = 0;
+  for (let i = 0; i < nodes.length; i++) { if (comp[i] >= 0) continue; const st = [i]; comp[i] = nc;
+    while (st.length) { const u = st.pop(); for (const sid of nodes[u].segs) for (const v of [segs[sid].a, segs[sid].b]) if (comp[v] < 0) { comp[v] = nc; st.push(v); } }
+    nc++; }
+  const compLen = new Array(nc).fill(0); for (const s of segs) compLen[comp[s.a]] += s.len;
+  if (nc > 1) { const main = compLen.indexOf(Math.max(...compLen));
+    for (let c = 0; c < nc; c++) if (c !== main) { const ss = segs.filter(s => comp[s.a] === c);
+      issues.push({ kind: 'island', segs: ss.map(s => s.id), len: ss.reduce((t, s) => t + s.len, 0), x: ss[0].xs[0], y: ss[0].ys[0],
+        title: `${ss.length} piece${ss.length > 1 ? 's' : ''} not connected to the network`, detail: `${net.features[ss[0].fid].display}: the planner cannot reach it.` }); } }
+  net.comp = comp;
+  return issues;
+}
+function pointAt(s, d) {
+  let lo = 0, hi = s.cum.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (s.cum[m] <= d) lo = m; else hi = m; }
+  const seg = s.cum[hi] - s.cum[lo] || 1, t = (d - s.cum[lo]) / seg;
+  return [s.xs[lo] + t * (s.xs[hi] - s.xs[lo]), s.ys[lo] + t * (s.ys[hi] - s.ys[lo])];
+}
+const ISSUE_KINDS = {
+  gap: { label: 'Near-miss gaps', sub: 'A trail ends close to another without joining', color: '--bad' },
+  overlap: { label: 'Overlapping trails', sub: 'Two lines on the same path, not joined', color: '--warn' },
+  double: { label: 'Double-backs', sub: 'A track that goes out and back on itself', color: '--info' },
+  dead: { label: 'Dead ends', sub: 'Trail ends that connect to nothing', color: '--t-mush' },
+  sliver: { label: 'Close junctions', sub: 'Two junctions a few meters apart (cosmetic, for info)', color: '--fg' },
+  island: { label: 'Disconnected pieces', sub: 'Trails the planner can’t reach', color: '--bad' },
+  shared: { label: 'Shared paths', sub: 'Trails drawn on the same vertices (fine, for info)', color: '--ok' },
+};
+</script>
+<script>
+"use strict";
+// ======================================================================
+//  Route solver: Rural Postman (Frederickson heuristic with exact matching)
+// ======================================================================
+// ===================================================================
+// Trail route solver (Rural Postman Problem)
+//   Cover every selected trail segment at least once, using any other
+//   trails as connectors, with as little total distance as possible.
+//   Method (Frederickson heuristic, same core as Chinese Postman):
+//     1. connect the separate pieces of the selection with a minimum
+//        spanning tree of shortest paths
+//     2. pair up odd-degree junctions with an exact minimum-weight
+//        perfect matching (Edmonds blossom, ported from networkx)
+//     3. walk the resulting graph with an Euler tour (Hierholzer)
+// ===================================================================
+
+// ---------- exact maximum-weight matching (port of networkx) ----------
+function maxWeightMatching(n, nbrs, W, maxcardinality) {
+  // n nodes 0..n-1, nbrs(v) -> array of neighbours, W(v,w) -> integer weight
+  const NONODE = -1;
+  const isB = x => typeof x === 'object';
+  class Blossom { constructor() { this.childs = null; this.edges = null; this.mybestedges = null; } }
+  const leaves = b => { const out = [], st = [...b.childs]; while (st.length) { const t = st.pop(); if (isB(t)) st.push(...t.childs); else out.push(t); } return out; };
+  let maxweight = 0;
+  for (let v = 0; v < n; v++) for (const w of nbrs(v)) if (v !== w && W(v, w) > maxweight) maxweight = W(v, w);
+  const mate = new Map(), label = new Map(), labeledge = new Map(), bestedge = new Map();
+  const inblossom = Array.from({ length: n }, (_, i) => i);
+  const blossomparent = new Map(), blossombase = new Map(), blossomdual = new Map(), allowedge = new Set();
+  for (let v = 0; v < n; v++) { blossomparent.set(v, null); blossombase.set(v, v); }
+  const dualvar = new Array(n).fill(maxweight);
+  let queue = [];
+  const ak = (v, w) => v * n + w;
+  const slack = (v, w) => dualvar[v] + dualvar[w] - 2 * W(v, w);
+  const lab = x => label.get(x);
+
+  function assignLabel(w, t, v) {
+    const b = inblossom[w];
+    label.set(w, t); label.set(b, t);
+    const le = v !== null ? [v, w] : null;
+    labeledge.set(w, le); labeledge.set(b, le);
+    bestedge.set(w, null); bestedge.set(b, null);
+    if (t === 1) { if (isB(b)) queue.push(...leaves(b)); else queue.push(b); }
+    else if (t === 2) { const base = blossombase.get(b); assignLabel(mate.get(base), 1, base); }
+  }
+  function scanBlossom(v, w) {
+    const path = []; let base = NONODE;
+    while (v !== NONODE) {
+      let b = inblossom[v];
+      if (lab(b) & 4) { base = blossombase.get(b); break; }
+      path.push(b); label.set(b, 5);
+      if (labeledge.get(b) === null) v = NONODE;
+      else { v = labeledge.get(b)[0]; b = inblossom[v]; v = labeledge.get(b)[0]; }
+      if (w !== NONODE) { const t = v; v = w; w = t; }
+    }
+    for (const b of path) label.set(b, 1);
+    return base;
+  }
+  function addBlossom(base, v, w) {
+    const bb = inblossom[base]; let bv = inblossom[v], bw = inblossom[w];
+    const b = new Blossom();
+    blossombase.set(b, base); blossomparent.set(b, null); blossomparent.set(bb, b);
+    const path = [], edgs = [[v, w]]; b.childs = path; b.edges = edgs;
+    while (bv !== bb) {
+      blossomparent.set(bv, b); path.push(bv); edgs.push(labeledge.get(bv));
+      v = labeledge.get(bv)[0]; bv = inblossom[v];
+    }
+    path.push(bb); path.reverse(); edgs.reverse();
+    while (bw !== bb) {
+      blossomparent.set(bw, b); path.push(bw);
+      const le = labeledge.get(bw); edgs.push([le[1], le[0]]);
+      w = le[0]; bw = inblossom[w];
+    }
+    label.set(b, 1); labeledge.set(b, labeledge.get(bb)); blossomdual.set(b, 0);
+    for (const x of leaves(b)) { if (lab(inblossom[x]) === 2) queue.push(x); inblossom[x] = b; }
+    const bestedgeto = new Map();
+    for (const c of path) {
+      let nblist;
+      if (isB(c)) {
+        if (c.mybestedges !== null) { nblist = c.mybestedges; c.mybestedges = null; }
+        else { nblist = []; for (const x of leaves(c)) for (const y of nbrs(x)) if (x !== y) nblist.push([x, y]); }
+      } else { nblist = []; for (const y of nbrs(c)) if (c !== y) nblist.push([c, y]); }
+      for (const k of nblist) {
+        let [i, j] = k;
+        if (inblossom[j] === b) { const t = i; i = j; j = t; }
+        const bj = inblossom[j];
+        if (bj !== b && lab(bj) === 1 && (!bestedgeto.has(bj) || slack(i, j) < slack(...bestedgeto.get(bj)))) bestedgeto.set(bj, k);
+      }
+      bestedge.set(c, null);
+    }
+    b.mybestedges = [...bestedgeto.values()];
+    let mybestedge = null, mybestslack = 0;
+    bestedge.set(b, null);
+    for (const k of b.mybestedges) { const ks = slack(...k); if (mybestedge === null || ks < mybestslack) { mybestedge = k; mybestslack = ks; } }
+    bestedge.set(b, mybestedge);
+  }
+  function expandBlossom(b0, endstage) {
+    function* rec(b) {
+      for (const s of b.childs) {
+        blossomparent.set(s, null);
+        if (isB(s)) {
+          if (endstage && blossomdual.get(s) === 0) yield s;
+          else for (const v of leaves(s)) inblossom[v] = s;
+        } else inblossom[s] = s;
+      }
+      if (!endstage && lab(b) === 2) {
+        const entrychild = inblossom[labeledge.get(b)[1]];
+        let j = b.childs.indexOf(entrychild), jstep;
+        if (j & 1) { j -= b.childs.length; jstep = 1; } else jstep = -1;
+        let [v, w] = labeledge.get(b);
+        while (j !== 0) {
+          let p, q;
+          if (jstep === 1) [p, q] = b.edges.at(j); else [q, p] = b.edges.at(j - 1);
+          label.delete(w); label.delete(q);
+          assignLabel(w, 2, v);
+          allowedge.add(ak(p, q)); allowedge.add(ak(q, p));
+          j += jstep;
+          if (jstep === 1) [v, w] = b.edges.at(j); else [w, v] = b.edges.at(j - 1);
+          allowedge.add(ak(v, w)); allowedge.add(ak(w, v));
+          j += jstep;
+        }
+        const bw = b.childs.at(j);
+        label.set(w, 2); label.set(bw, 2);
+        labeledge.set(w, [v, w]); labeledge.set(bw, [v, w]);
+        bestedge.set(bw, null);
+        j += jstep;
+        while (b.childs.at(j) !== entrychild) {
+          const bv = b.childs.at(j);
+          if (lab(bv) === 1) { j += jstep; continue; }
+          let vv;
+          if (isB(bv)) { for (vv of leaves(bv)) if (lab(vv)) break; } else vv = bv;
+          if (lab(vv)) {
+            label.delete(vv); label.delete(mate.get(blossombase.get(bv)));
+            assignLabel(vv, 2, labeledge.get(vv)[0]);
+          }
+          j += jstep;
+        }
+      }
+      label.delete(b); labeledge.delete(b); bestedge.delete(b);
+      blossomparent.delete(b); blossombase.delete(b); blossomdual.delete(b);
+    }
+    const stack = [rec(b0)];
+    while (stack.length) { const r = stack[stack.length - 1].next(); if (!r.done) stack.push(rec(r.value)); else stack.pop(); }
+  }
+  function augmentBlossom(b0, v0) {
+    function* rec(b, v) {
+      let t = v;
+      while (blossomparent.get(t) !== b) t = blossomparent.get(t);
+      if (isB(t)) yield [t, v];
+      const i = b.childs.indexOf(t); let j = i, jstep;
+      if (i & 1) { j -= b.childs.length; jstep = 1; } else jstep = -1;
+      while (j !== 0) {
+        j += jstep; t = b.childs.at(j);
+        let w, x;
+        if (jstep === 1) [w, x] = b.edges.at(j); else [x, w] = b.edges.at(j - 1);
+        if (isB(t)) yield [t, w];
+        j += jstep; t = b.childs.at(j);
+        if (isB(t)) yield [t, x];
+        mate.set(w, x); mate.set(x, w);
+      }
+      b.childs = b.childs.slice(i).concat(b.childs.slice(0, i));
+      b.edges = b.edges.slice(i).concat(b.edges.slice(0, i));
+      blossombase.set(b, blossombase.get(b.childs[0]));
+    }
+    const stack = [rec(b0, v0)];
+    while (stack.length) { const r = stack[stack.length - 1].next(); if (!r.done) stack.push(rec(...r.value)); else stack.pop(); }
+  }
+  function augmentMatching(v, w) {
+    for (let [s, j] of [[v, w], [w, v]]) {
+      while (true) {
+        const bs = inblossom[s];
+        if (isB(bs)) augmentBlossom(bs, s);
+        mate.set(s, j);
+        if (labeledge.get(bs) === null) break;
+        const t = labeledge.get(bs)[0], bt = inblossom[t];
+        [s, j] = labeledge.get(bt);
+        if (isB(bt)) augmentBlossom(bt, j);
+        mate.set(j, s);
+      }
+    }
+  }
+  while (true) {
+    label.clear(); labeledge.clear(); bestedge.clear();
+    for (const b of blossomdual.keys()) b.mybestedges = null;
+    allowedge.clear(); queue = [];
+    for (let v = 0; v < n; v++) if (!mate.has(v) && lab(inblossom[v]) === undefined) assignLabel(v, 1, null);
+    let augmented = false;
+    while (true) {
+      while (queue.length && !augmented) {
+        const v = queue.pop();
+        for (const w of nbrs(v)) {
+          if (w === v) continue;
+          const bv = inblossom[v], bw = inblossom[w];
+          if (bv === bw) continue;
+          let kslack;
+          if (!allowedge.has(ak(v, w))) { kslack = slack(v, w); if (kslack <= 0) { allowedge.add(ak(v, w)); allowedge.add(ak(w, v)); } }
+          if (allowedge.has(ak(v, w))) {
+            if (lab(bw) === undefined) assignLabel(w, 2, v);
+            else if (lab(bw) === 1) {
+              const base = scanBlossom(v, w);
+              if (base !== NONODE) addBlossom(base, v, w);
+              else { augmentMatching(v, w); augmented = true; break; }
+            } else if (lab(w) === undefined) { label.set(w, 2); labeledge.set(w, [v, w]); }
+          } else if (lab(bw) === 1) {
+            const be = bestedge.get(bv);
+            if (be == null || kslack < slack(...be)) bestedge.set(bv, [v, w]);
+          } else if (lab(w) === undefined) {
+            const be = bestedge.get(w);
+            if (be == null || kslack < slack(...be)) bestedge.set(w, [v, w]);
+          }
+        }
+      }
+      if (augmented) break;
+      let deltatype = -1, delta = null, deltaedge = null, deltablossom = null;
+      if (!maxcardinality) { deltatype = 1; delta = Math.min(...dualvar); }
+      for (let v = 0; v < n; v++) {
+        const be = bestedge.get(v);
+        if (lab(inblossom[v]) === undefined && be != null) {
+          const d = slack(...be);
+          if (deltatype === -1 || d < delta) { delta = d; deltatype = 2; deltaedge = be; }
+        }
+      }
+      for (const [b, par] of blossomparent) {
+        const be = bestedge.get(b);
+        if (par === null && lab(b) === 1 && be != null) {
+          const d = slack(...be) / 2;
+          if (deltatype === -1 || d < delta) { delta = d; deltatype = 3; deltaedge = be; }
+        }
+      }
+      for (const [b, bd] of blossomdual) {
+        if (blossomparent.get(b) === null && lab(b) === 2 && (deltatype === -1 || bd < delta)) { delta = bd; deltatype = 4; deltablossom = b; }
+      }
+      if (deltatype === -1) { deltatype = 1; delta = Math.max(0, Math.min(...dualvar)); }
+      for (let v = 0; v < n; v++) { const l = lab(inblossom[v]); if (l === 1) dualvar[v] -= delta; else if (l === 2) dualvar[v] += delta; }
+      for (const [b, bd] of blossomdual) {
+        if (blossomparent.get(b) === null) { const l = lab(b); if (l === 1) blossomdual.set(b, bd + delta); else if (l === 2) blossomdual.set(b, bd - delta); }
+      }
+      if (deltatype === 1) break;
+      else if (deltatype === 2 || deltatype === 3) { const [v, w] = deltaedge; allowedge.add(ak(v, w)); allowedge.add(ak(w, v)); queue.push(v); }
+      else if (deltatype === 4) expandBlossom(deltablossom, false);
+    }
+    if (!augmented) break;
+    for (const b of [...blossomdual.keys()]) {
+      if (!blossomdual.has(b)) continue;
+      if (blossomparent.get(b) === null && lab(b) === 1 && blossomdual.get(b) === 0) expandBlossom(b, true);
+    }
+  }
+  return mate;
+}
+
+// min-weight perfect matching on an (almost) complete graph given by cost(i,j); cost=null means no edge
+function minWeightPerfectMatching(k, cost) {
+  const C = [], adj = [];
+  let maxc = 0;
+  for (let i = 0; i < k; i++) { C.push(new Array(k).fill(null)); adj.push([]); }
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) {
+    const c = cost(i, j); if (c === null) continue;
+    const ci = Math.round(c * 10);           // decimetres -> integer arithmetic
+    C[i][j] = C[j][i] = ci; adj[i].push(j); adj[j].push(i); if (ci > maxc) maxc = ci;
+  }
+  const M = maxc + 1;
+  const mate = maxWeightMatching(k, v => adj[v], (v, w) => M - C[v][w], true);
+  const pairs = [];
+  for (const [a, b] of mate) if (a < b) pairs.push([a, b]);
+  return pairs;
+}
+
+// ---------- graph helpers ----------
+class MinHeap {
+  constructor() { this.a = []; }
+  push(d, v) { const a = this.a; a.push([d, v]); let i = a.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break; [a[p], a[i]] = [a[i], a[p]]; i = p; } }
+  pop() { const a = this.a, top = a[0], last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l][0] < a[m][0]) m = l; if (r < a.length && a[r][0] < a[m][0]) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } } return top; }
+  get size() { return this.a.length; }
+}
+
+function buildGraph(net) {
+  const n = net.nodes.length, adj = Array.from({ length: n }, () => []);
+  net.segs.forEach((s, i) => { if (s[4]) return; /* s[4] = off limits */ adj[s[1]].push([i, s[2]]); if (s[1] !== s[2]) adj[s[2]].push([i, s[1]]); });
+  return { n, adj, len: net.segs.map(s => s[3]), ends: net.segs.map(s => [s[1], s[2]]) };
+}
+
+// Dijkstra from a set of sources; returns dist + predecessor segment
+function dijkstra(G, sources) {
+  const dist = new Float64Array(G.n).fill(Infinity), prevSeg = new Int32Array(G.n).fill(-1), prevNode = new Int32Array(G.n).fill(-1);
+  const h = new MinHeap();
+  for (const s of sources) { dist[s] = 0; h.push(0, s); }
+  while (h.size) {
+    const [d, u] = h.pop(); if (d > dist[u]) continue;
+    for (const [si, v] of G.adj[u]) {
+      const nd = d + G.len[si];
+      if (nd < dist[v]) { dist[v] = nd; prevSeg[v] = si; prevNode[v] = u; h.push(nd, v); }
+    }
+  }
+  return { dist, prevSeg, prevNode };
+}
+function tracePath(dj, target) {        // list of segment ids from source set to target
+  const out = []; let v = target;
+  while (dj.prevSeg[v] !== -1) { out.push(dj.prevSeg[v]); v = dj.prevNode[v]; }
+  return out.reverse();
+}
+
+// ---------- main solve ----------
+// opts: { start: nodeId|null, end: 'loop' | 'anywhere' | nodeId }
+function solveRoute(net, selected, opts = {}) {
+  const G = buildGraph(net);
+  const start = opts.start ?? null, endMode = opts.end ?? 'loop';
+  const required = [...new Set(selected)];
+  if (!required.length) throw new Error('Select at least one trail.');
+  const count = new Map();                 // segment id -> number of traversals
+  const add = s => count.set(s, (count.get(s) || 0) + 1);
+  required.forEach(add);
+
+  // 1. connected pieces of the selection (+ start / fixed end as their own piece)
+  const par = new Map(); const fd = x => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
+  const touch = x => { if (!par.has(x)) par.set(x, x); };
+  for (const s of required) { const [a, b] = G.ends[s]; touch(a); touch(b); par.set(fd(a), fd(b)); }
+  if (start !== null) touch(start);
+  if (typeof endMode === 'number') touch(endMode);
+  const groups = new Map();
+  for (const x of par.keys()) { const r = fd(x); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(x); }
+  const comps = [...groups.values()];
+  let connectorLen = 0;
+  if (comps.length > 1) {
+    // Prim's MST over pieces, edge cost = shortest path between pieces
+    const dj = comps.map(c => dijkstra(G, c));
+    const compOf = new Int32Array(G.n).fill(-1); comps.forEach((c, i) => c.forEach(x => compOf[x] = i));
+    const best = (i, j) => { let bd = Infinity, bn = -1; for (const x of comps[j]) if (dj[i].dist[x] < bd) { bd = dj[i].dist[x]; bn = x; } return [bd, bn]; };
+    const inTree = new Array(comps.length).fill(false); inTree[0] = true;
+    for (let k = 1; k < comps.length; k++) {
+      let bd = Infinity, bi = -1, bj = -1, bn = -1;
+      for (let i = 0; i < comps.length; i++) if (inTree[i]) for (let j = 0; j < comps.length; j++) if (!inTree[j]) {
+        const [d, x] = best(i, j); if (d < bd) { bd = d; bi = i; bj = j; bn = x; }
+      }
+      if (bi < 0) throw new Error('Some selected trails are not connected to the rest of the network.');
+      inTree[bj] = true;
+      for (const s of tracePath(dj[bi], bn)) { add(s); connectorLen += G.len[s]; }
+    }
+  }
+  // 2. fix odd degrees with min-weight perfect matching
+  const deg = new Map(); const bump = x => deg.set(x, (deg.get(x) || 0) + 1);
+  for (const [s, c] of count) { const [a, b] = G.ends[s]; for (let i = 0; i < c; i++) { bump(a); bump(b); } }
+  const want = x => { // desired parity of node x (1 = odd)
+    if (typeof endMode === 'number' && start !== null && start !== endMode) return (x === start || x === endMode) ? 1 : 0;
+    return 0;
+  };
+  let odd = [...deg.keys()].filter(x => ((deg.get(x) % 2) ^ want(x)) === 1);
+  if (typeof endMode === 'number' && start !== null && start !== endMode) {
+    for (const x of [start, endMode]) if (!deg.has(x)) odd.push(x);
+  }
+  let nDummy = 0;
+  if (endMode === 'anywhere') {
+    if (start !== null) { // start must be an end of the path: flip its parity, one free end
+      odd = odd.includes(start) ? odd.filter(x => x !== start) : [...odd, start];
+      nDummy = 1;
+    } else nDummy = 2;
+  }
+  const dists = odd.map(x => dijkstra(G, [x]));
+  const K = odd.length + nDummy;
+  const pairs = minWeightPerfectMatching(K, (i, j) => {
+    if (i >= odd.length && j >= odd.length) return null;           // dummy-dummy not allowed
+    if (i >= odd.length || j >= odd.length) {
+      const real = odd[Math.min(i, j)];
+      return (start !== null && real === start && nDummy === 1) ? null : 0;   // free end can't be the start
+    }
+    return dists[i].dist[odd[j]];
+  });
+  let endNode = null, endNode2 = null;
+  for (const [i, j] of pairs) {
+    if (j >= odd.length) { if (endNode === null) endNode = odd[i]; else endNode2 = odd[i]; continue; }
+    for (const s of tracePath(dists[i], odd[j])) add(s);
+  }
+  // 3. Euler tour (Hierholzer) over the multigraph
+  let tourStart = start;
+  if (tourStart === null) tourStart = endMode === 'anywhere' ? endNode2 ?? endNode : G.ends[required[0]][0];
+  if (tourStart === null) tourStart = G.ends[required[0]][0];
+  const left = new Map(count);
+  const ptr = new Map();
+  const nextEdge = u => {
+    const lst = G.adj[u]; let p = ptr.get(u) || 0;
+    while (p < lst.length && !(left.get(lst[p][0]) > 0)) p++;
+    ptr.set(u, p); return p < lst.length ? lst[p] : null;
+  };
+  const stack = [[tourStart, -1]], tour = [];
+  while (stack.length) {
+    const [u] = stack[stack.length - 1];
+    const e = nextEdge(u);
+    if (e) { left.set(e[0], left.get(e[0]) - 1); stack.push([e[1], e[0]]); }
+    else { const [v, s] = stack.pop(); if (s >= 0) tour.push([s, v]); }
+  }
+  tour.reverse();
+  // tour entries: [segment, nodeArrivedAt]
+  const steps = []; let cur = tourStart;
+  for (const [s, v] of tour) { const [a, b] = G.ends[s]; const fwd = a === cur; steps.push({ seg: s, fwd }); cur = v; }
+  const usedEdges = [...left.values()].every(c => c === 0);
+  const total = steps.reduce((t, st) => t + G.len[st.seg], 0);
+  const reqLen = required.reduce((t, s) => t + G.len[s], 0);
+  return { steps, total, required: reqLen, extra: total - reqLen, start: tourStart, end: cur, ok: usedEdges };
+}
+
+
+</script>
+<script>
+"use strict";
+// ======================================================================
+//  App state
+// ======================================================================
+let NET = null, ISSUES = [];
+const S = {
+  tab: 'plan', selected: new Set(), undo: [], clickMode: 'seg', lasso: null, lassoPath: null,
+  start: null, end: null, endMode: 'loop', pick: null, route: null, error: null,
+  hover: null, cursorD: null, playing: false, issueShow: new Set(['gap', 'overlap', 'double', 'dead', 'island']), focusIssue: null,
+  optVal: 0, optUnit: 'ft', pace: 11, allowLinks: true, basemap: true,
+};
+const view = { cx: 0, cy: 0, scale: 0.1, w: 0, h: 0, dpr: 1 };
+let COLORS = {};
+function readColors() {
+  COLORS = {}; for (const k of ['--map-bg', '--map-grid', '--casing', '--map-ink', '--accent', '--ok', '--bad', '--warn', '--info', '--fg', '--muted', '--panel', '--t-other', '--t-mush'])
+    COLORS[k] = cssVar(k);
+  for (const t in TYPE_INFO) COLORS[t] = cssVar(TYPE_INFO[t][1]);
+}
+const segColor = s => COLORS[NET.features[NET.segs[s].fid].type] || COLORS['--t-other'];
+
+function loadData(raw, sourceNote) {
+  NET = buildNetwork(raw);
+  NET.solverNet = { nodes: NET.nodes, segs: NET.segs.map(s => [s.fid, s.a, s.b, s.len]) };
+  S.selected.clear(); S.undo = []; S.start = null; S.end = null; S.route = null; S.error = null; S.cursorD = null;
+  ISSUES = runChecks(NET, readTol());
+  $('netinfo').textContent = `${NET.features.length} trails · ${NET.segs.length} pieces · ${fmtMi(NET.total)} mi`;
+  $('data-source').textContent = sourceNote;
+  buildTypeList(); buildNameList(); renderIssues(); fitAll(); updateSelectionUI(); renderResult(); draw();
+}
+function readTol() { return { overlap: +$('tol-overlap').value || 4, run: +$('tol-run').value || 20, gap: +$('tol-gap').value || 15, sliver: +$('tol-sliver').value || 5 }; }
+
+// ======================================================================
+//  Selection
+// ======================================================================
+function pushUndo() { S.undo.push(new Set(S.selected)); if (S.undo.length > 60) S.undo.shift(); }
+function setSel(ids, on) { pushUndo(); for (const i of ids) on ? S.selected.add(i) : S.selected.delete(i); selectionChanged(); }
+function selectionChanged() { S.example = false; updateSelectionUI(); scheduleSolve(); draw(); }
+function optThreshold() { const v = +S.optVal || 0; return S.optUnit === 'mi' ? v * M_PER_MI : S.optUnit === 'm' ? v : v / FT_PER_M; }
+function updateSelectionUI() {
+  const thr = optThreshold();
+  let L = 0, nOpt = 0, Lopt = 0; for (const i of S.selected) { L += NET.segs[i].len; if (NET.segs[i].len < thr) { nOpt++; Lopt += NET.segs[i].len; } }
+  $('sel-mi').innerHTML = `${fmtMi(L)}<small>mi</small>`;
+  $('sel-n').textContent = S.example ? 'Example: every ski trail' : S.selected.size ? `${S.selected.size} piece${S.selected.size > 1 ? 's' : ''} of trail` : 'nothing selected';
+  $('undo').disabled = !S.undo.length;
+  $('opt-note').innerHTML = thr > 0 ? `<b>${nOpt}</b> selected piece${nOpt === 1 ? '' : 's'} (${fmtLen(Lopt)}) are optional: run only if they happen to be on the way. They show dashed on the map.` : 'are only run if they happen to be on the way. Set 0 to require everything.';
+  // type tri-state
+  document.querySelectorAll('.type-row').forEach(r => { const ids = TYPE_SEGS.get(r.dataset.type) || []; const n = ids.filter(i => S.selected.has(i)).length;
+    r.querySelector('.check').dataset.state = n === 0 ? 'none' : n === ids.length ? 'all' : 'some'; r.setAttribute('aria-checked', n === ids.length ? 'true' : n ? 'mixed' : 'false'); });
+  document.querySelectorAll('.name-row').forEach(r => { const ids = NAME_SEGS.get(r.dataset.name) || []; const n = ids.filter(i => S.selected.has(i)).length;
+    r.querySelector('.check').dataset.state = n === 0 ? 'none' : n === ids.length ? 'all' : 'some'; });
+}
+let TYPE_SEGS = new Map(), NAME_SEGS = new Map();
+function buildTypeList() {
+  TYPE_SEGS = new Map();
+  NET.segs.forEach(s => { for (const t of new Set(s.fids.map(i => NET.features[i].type))) { if (!TYPE_SEGS.has(t)) TYPE_SEGS.set(t, []); TYPE_SEGS.get(t).push(s.id); } });
+  const order = Object.keys(TYPE_INFO); const types = [...TYPE_SEGS.keys()].sort((a, b) => (order.indexOf(a) + 99 * (order.indexOf(a) < 0)) - (order.indexOf(b) + 99 * (order.indexOf(b) < 0)));
+  $('types').innerHTML = types.map(t => { const L = TYPE_SEGS.get(t).reduce((a, i) => a + NET.segs[i].len, 0);
+    return `<div class="type-row" role="checkbox" tabindex="0" data-type="${esc(t)}"><span class="check"></span><span class="swatch" style="background:var(${typeVar(t)})"></span><span>${esc(typeLabel(t))}</span><span class="mi">${fmtMi(L)} mi</span></div>`; }).join('');
+}
+function buildNameList() {
+  NAME_SEGS = new Map(); const types = new Map();
+  NET.segs.forEach(s => { const seenN = new Set(); for (const fid of s.fids) { const f = NET.features[fid]; const n = f.display; if (!NAME_SEGS.has(n)) { NAME_SEGS.set(n, []); types.set(n, new Set()); }
+    if (!seenN.has(n)) NAME_SEGS.get(n).push(s.id); seenN.add(n); types.get(n).add(f.type); } });
+  NET.nameTypes = types; renderNameList();
+}
+function renderNameList() {
+  const q = $('search').value.trim().toLowerCase();
+  const names = [...NAME_SEGS.keys()].filter(n => !q || n.toLowerCase().includes(q) || NET.features.some(f => f.display === n && f.name.toLowerCase().includes(q))).sort((a, b) => a.localeCompare(b));
+  $('names').innerHTML = names.length ? names.map(n => { const L = NAME_SEGS.get(n).reduce((a, i) => a + NET.segs[i].len, 0);
+    const dots = [...NET.nameTypes.get(n)].map(t => `<i style="background:var(${typeVar(t)})" title="${esc(typeLabel(t))}"></i>`).join('');
+    return `<div class="name-row" data-name="${esc(n)}" role="checkbox" tabindex="0"><span class="check"></span><span class="nm"><span class="dots">${dots}</span>${esc(n)}</span><span class="mi">${fmtMi(L)}</span></div>`; }).join('')
+    : `<div class="name-row" style="cursor:default"><span></span><span class="nm hint">No trail matches “${esc(q)}”</span><span></span></div>`;
+  updateSelectionUI();
+}
+function toggleGroup(ids) { const all = ids.every(i => S.selected.has(i)); setSel(ids, !all); }
+
+// ======================================================================
+//  Solve
+// ======================================================================
+let solveTimer = null;
+function scheduleSolve() { clearTimeout(solveTimer); stopPlay(); S.cursorD = null; $('busy').hidden = !S.selected.size; solveTimer = setTimeout(solveNow, 120); }
+function solveNow() {
+  $('busy').hidden = true; S.error = null; S.route = null; S.suggest = null;
+  if (!S.selected.size) { renderResult(); draw(); return; }
+  const thr = optThreshold(); const required = [...S.selected].filter(i => NET.segs[i].len >= thr);
+  if (!required.length) { S.error = 'Everything you picked is shorter than the optional limit, so nothing is required. Lower the limit in step 2.'; renderResult(); draw(); return; }
+  const t0 = performance.now();
+  try {
+    const end = S.endMode === 'loop' ? 'loop' : S.endMode === 'anywhere' ? 'anywhere' : (S.end ?? 'anywhere');
+    let net = NET.solverNet;
+    if (!S.allowLinks) {
+      const onSel = new Set(); for (const i of S.selected) { onSel.add(NET.segs[i].a); onSel.add(NET.segs[i].b); }
+      if (S.start != null && !onSel.has(S.start)) throw new Error('Your start is not on a trail you picked. With link trails off, the route can only use your picks. Move the start onto one of them, or turn link trails back on.');
+      if (typeof end === 'number' && !onSel.has(end)) throw new Error('Your finish is not on a trail you picked. With link trails off, move the finish onto one of your picks, or turn link trails back on.');
+      // how many separate pieces does the selection form on its own?
+      const par = new Map(); const fd = x => { while (par.get(x) !== x) x = par.get(x); return x; };
+      for (const n of onSel) par.set(n, n);
+      for (const i of S.selected) par.set(fd(NET.segs[i].a), fd(NET.segs[i].b));
+      const roots = new Set(required.map(i => fd(NET.segs[i].a)));
+      if (S.start != null) roots.add(fd(S.start)); if (typeof end === 'number') roots.add(fd(end));
+      if (roots.size > 1) {
+        // find the shortest unpicked trails that would join the groups (minimum spanning tree over shortest paths)
+        const groups = new Map(); for (const n of onSel) { const r = fd(n); if (roots.has(r)) { if (!groups.has(r)) groups.set(r, []); groups.get(r).push(n); } }
+        const G = buildGraph(NET.solverNet), comps = [...groups.values()], dj = comps.map(c => dijkstra(G, c));
+        const inTree = comps.map((_, i) => i === 0), add = new Set();
+        for (let k = 1; k < comps.length; k++) {
+          let bd = Infinity, bi = -1, bn = -1, bj = -1;
+          for (let i = 0; i < comps.length; i++) if (inTree[i]) for (let j = 0; j < comps.length; j++) if (!inTree[j]) for (const x of comps[j]) if (dj[i].dist[x] < bd) { bd = dj[i].dist[x]; bi = i; bj = j; bn = x; }
+          if (bi < 0) break; inTree[bj] = true; for (const s of tracePath(dj[bi], bn)) if (!S.selected.has(s)) add.add(s);
+        }
+        const L = [...add].reduce((t, i) => t + NET.segs[i].len, 0);
+        S.suggest = { segs: [...add], len: L, groups: roots.size };
+        throw new Error(`With link trails off, the route can only run on trails you picked, and your picks form ${roots.size} groups that don't touch each other. The shortest way to join them is ${add.size} more piece${add.size === 1 ? '' : 's'} of trail (${fmtLen(L)}), shown dashed orange on the map.`);
+      }
+      net = { nodes: NET.solverNet.nodes, segs: NET.solverNet.segs.map((s, i) => [s[0], s[1], s[2], s[3], !S.selected.has(i)]) };
+    }
+    const r = solveRoute(net, required, { start: S.start, end });
+    S.route = buildRouteGeometry(r);
+    $('solve-time').textContent = `solved in ${Math.max(1, Math.round(performance.now() - t0))} ms`;
+  } catch (e) { S.error = e.message; }
+  renderResult(); draw();
+}
+function buildRouteGeometry(r) {
+  const X = [], Y = [], D = [], Z = [], STEP = []; let d = 0;
+  const covered = new Set(); const steps = [];
+  let gain = 0, loss = 0;
+  r.steps.forEach((st, k) => {
+    const s = NET.segs[st.seg]; const n = s.xs.length;
+    const status = S.selected.has(st.seg) ? (covered.has(st.seg) ? 'repeat' : 'new') : 'link';
+    covered.add(st.seg);
+    const d0 = d;
+    for (let j = 0; j < n; j++) { const i = st.fwd ? j : n - 1 - j; if (j === 0 && X.length) continue;
+      if (X.length) d += Math.hypot(s.xs[i] - X[X.length - 1], s.ys[i] - Y[Y.length - 1]);
+      X.push(s.xs[i]); Y.push(s.ys[i]); D.push(d); Z.push(s.zs ? s.zs[i] : null); STEP.push(k); }
+    if (s.zs) { gain += st.fwd ? s.gainF : s.lossF; loss += st.fwd ? s.lossF : s.gainF; }
+    steps.push({ seg: st.seg, fwd: st.fwd, status, d0, d1: d });
+  });
+  // legs = consecutive steps on the same trail with the same status
+  const legs = [];
+  for (const st of steps) { const f = NET.segs[st.seg].fid; const name = NET.segs[st.seg].name; const last = legs[legs.length - 1];
+    if (last && last.name === name && last.status === st.status) { last.d1 = st.d1; last.steps.push(st); }
+    else legs.push({ name, fid: f, status: st.status, d0: st.d0, d1: st.d1, steps: [st] }); }
+  const newLen = steps.filter(s => s.status === 'new').reduce((t, s) => t + s.d1 - s.d0, 0);
+  return { X, Y, D, Z, STEP, steps, legs, total: d, newLen, extra: d - newLen, gain, loss, hasZ: NET.hasZ, start: r.start, end: r.end };
+}
+
+// ======================================================================
+//  Map rendering (canvas)
+// ======================================================================
+const cv = $('map'), ctx = cv.getContext('2d');
+function resize() {
+  const r = $('mapwrap').getBoundingClientRect(); view.dpr = window.devicePixelRatio || 1; view.w = r.width; view.h = r.height;
+  cv.width = Math.round(r.width * view.dpr); cv.height = Math.round(r.height * view.dpr); draw();
+}
+const sx = x => (x - view.cx) * view.scale + view.w / 2, sy = y => view.h / 2 - (y - view.cy) * view.scale;
+const wx = px => (px - view.w / 2) / view.scale + view.cx, wy = py => view.cy - (py - view.h / 2) / view.scale;
+function fitBounds(b, pad = 40) {
+  const w = Math.max(b.maxx - b.minx, 50), h = Math.max(b.maxy - b.miny, 50);
+  view.cx = (b.minx + b.maxx) / 2; view.cy = (b.miny + b.maxy) / 2;
+  view.scale = Math.min((view.w - 2 * pad) / w, (view.h - 2 * pad - 40) / h); draw();
+}
+function fitAll() { if (NET) fitBounds(NET.bounds); }
+function pathSeg(s, from = 0, to = Infinity) {
+  ctx.beginPath(); let started = false;
+  for (let i = 0; i < s.xs.length; i++) { if (s.cum[i] < from - 1e-6 && !(i + 1 < s.xs.length && s.cum[i + 1] > from)) continue; if (s.cum[i] > to && started) break;
+    const X = sx(s.xs[i]), Y = sy(s.ys[i]); started ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); started = true; }
+}
+let drawQueued = false;
+function draw() { if (drawQueued) return; drawQueued = true; requestAnimationFrame(() => { drawQueued = false; drawNow(); }); }
+function drawNow() {
+  if (!NET) return;
+  const c = ctx; c.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  c.fillStyle = COLORS['--map-bg']; c.fillRect(0, 0, view.w, view.h);
+  if (STANDALONE && S.basemap) drawTiles();
+  // faint 500 m grid
+  c.strokeStyle = COLORS['--map-grid']; c.lineWidth = 1; c.beginPath();
+  const g = 500; for (let x = Math.floor(wx(0) / g) * g; x <= wx(view.w); x += g) { c.moveTo(sx(x), 0); c.lineTo(sx(x), view.h); }
+  for (let y = Math.floor(wy(view.h) / g) * g; y <= wy(0); y += g) { c.moveTo(0, sy(y)); c.lineTo(view.w, sy(y)); } c.stroke();
+  const thr = optThreshold(), routeOn = !!S.route, checkOn = S.tab === 'check';
+  const z = Math.max(0.6, Math.min(1.6, view.scale * 3));
+  const visible = s => !(sx(s.maxx) < -20 || sx(s.minx) > view.w + 20 || sy(s.miny) < -20 || sy(s.maxy) > view.h + 20);
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  // base trails
+  const dim = (routeOn || checkOn) && !(STANDALONE && S.basemap);
+  for (const s of NET.segs) { if (!visible(s) || S.selected.has(s.id)) continue;
+    pathSeg(s); c.strokeStyle = segColor(s.id); c.globalAlpha = dim ? 0.42 : 0.7; c.lineWidth = (dim ? 1.4 : 1.7) * z; c.stroke(); }
+  c.globalAlpha = 1;
+  // selected trails: casing + colour, dashed if optional
+  if (!checkOn) {
+    for (const s of NET.segs) if (S.selected.has(s.id) && visible(s)) { pathSeg(s); c.strokeStyle = COLORS['--casing']; c.globalAlpha = routeOn ? 0.5 : 1; c.lineWidth = 6.5 * z; c.stroke(); }
+    for (const s of NET.segs) if (S.selected.has(s.id) && visible(s)) { pathSeg(s); c.strokeStyle = segColor(s.id); c.globalAlpha = routeOn ? 0.45 : 1; c.lineWidth = 3.6 * z;
+      if (s.len < thr) c.setLineDash([5 * z, 5 * z]); c.stroke(); c.setLineDash([]); }
+    c.globalAlpha = 1;
+  }
+  if (routeOn && !checkOn) drawRoute(z);
+  if (S.suggest && !checkOn) { // joining pieces suggested when link trails are off
+    for (const id of S.suggest.segs) { const s = NET.segs[id]; pathSeg(s); c.strokeStyle = COLORS['--casing']; c.lineWidth = 8 * z; c.stroke();
+      pathSeg(s); c.strokeStyle = COLORS['--accent']; c.lineWidth = 4 * z; c.setLineDash([7 * z, 5 * z]); c.stroke(); c.setLineDash([]); } }
+  if (checkOn) drawIssues(z);
+  // hover
+  if (S.hover != null && !S.lassoPath) { const ids = S.clickMode === 'trail' && !checkOn ? NET.segs.filter(s => s.fids.includes(NET.segs[S.hover].fid)).map(s => s.id) : [S.hover];
+    for (const id of ids) { pathSeg(NET.segs[id]); c.strokeStyle = COLORS['--map-ink']; c.globalAlpha = 0.35; c.lineWidth = 10 * z; c.stroke(); } c.globalAlpha = 1; }
+  // start / end markers
+  const mark = (n, color, label, square) => { if (n == null) return; const p = NET.nodes[n], X = sx(p.x), Y = sy(p.y);
+    c.fillStyle = color; c.strokeStyle = COLORS['--casing']; c.lineWidth = 3; c.beginPath();
+    square ? c.roundRect(X - 9, Y - 9, 18, 18, 4) : c.arc(X, Y, label.length > 1 ? 13 : 10, 0, 7); c.fill(); c.stroke();
+    c.fillStyle = '#fff'; c.font = '700 12px "Barlow Condensed", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(label, X, Y + 0.5); };
+  if (!checkOn) {
+    const st = S.route ? S.route.start : S.start, en = S.route ? S.route.end : (S.endMode === 'point' ? S.end : null);
+    if (st != null && en != null && st === en) mark(st, COLORS['--ok'], 'S/F');
+    else { mark(en, COLORS['--bad'], 'F', true); mark(st, COLORS['--ok'], 'S'); }
+  }
+  // lasso
+  if (S.lassoPath && S.lassoPath.length > 1) { c.beginPath(); S.lassoPath.forEach(([X, Y], i) => i ? c.lineTo(X, Y) : c.moveTo(X, Y)); c.closePath();
+    c.fillStyle = S.lasso === 'rem' ? 'rgba(214,51,108,.10)' : 'rgba(217,72,15,.10)'; c.fill(); c.setLineDash([6, 4]); c.strokeStyle = S.lasso === 'rem' ? COLORS['--bad'] : COLORS['--accent']; c.lineWidth = 1.8; c.stroke(); c.setLineDash([]); }
+  updateScale();
+}
+// route colour ramp: teal -> gold -> magenta (start to finish)
+const RAMP = [[14, 165, 164], [242, 183, 5], [214, 51, 108]];
+function rampColor(t, a = 1) { t = Math.max(0, Math.min(1, t)); const k = t < 0.5 ? 0 : 1, u = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+  const p = RAMP[k], q = RAMP[k + 1]; return `rgba(${Math.round(p[0] + (q[0] - p[0]) * u)},${Math.round(p[1] + (q[1] - p[1]) * u)},${Math.round(p[2] + (q[2] - p[2]) * u)},${a})`; }
+function drawRoute(z) {
+  const R = S.route, c = ctx, n = R.X.length, total = R.total || 1; const cur = S.cursorD;
+  // casing
+  c.beginPath(); for (let i = 0; i < n; i++) { const X = sx(R.X[i]), Y = sy(R.Y[i]); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }
+  c.strokeStyle = COLORS['--casing']; c.lineWidth = 7.5 * z; c.globalAlpha = cur != null ? 0.5 : 0.9; c.stroke(); c.globalAlpha = 1;
+  // coloured by progress; link sections dashed; beyond cursor faded
+  const CH = 12; // vertices per stroke chunk; chunks never cross from one step to the next
+  for (let i = 0; i < n - 1;) {
+    const stepId = R.STEP[i + 1]; let j = i + 1;
+    while (j < n - 1 && j - i < CH && R.STEP[j + 1] === stepId) j++;
+    const st = R.steps[stepId];
+    c.beginPath(); c.moveTo(sx(R.X[i]), sy(R.Y[i])); for (let k = i + 1; k <= j; k++) c.lineTo(sx(R.X[k]), sy(R.Y[k]));
+    const t = R.D[i] / total; const ahead = cur != null && R.D[i] > cur; i = j;
+    c.strokeStyle = rampColor(t, ahead ? 0.28 : 1); c.lineWidth = 4 * z;
+    if (st && st.status === 'link') c.setLineDash([1, 6 * z]); c.stroke(); c.setLineDash([]);
+  }
+  // direction chevrons every ~300 m, mile markers
+  const every = Math.max(200, 30 / view.scale * 2.2);
+  let next = every / 2, mile = M_PER_MI, i = 1;
+  c.lineWidth = 2;
+  for (; i < n; i++) {
+    while (R.D[i] >= next && i < n) {
+      const t = (next - R.D[i - 1]) / ((R.D[i] - R.D[i - 1]) || 1); const x = R.X[i - 1] + t * (R.X[i] - R.X[i - 1]), y = R.Y[i - 1] + t * (R.Y[i] - R.Y[i - 1]);
+      const ang = Math.atan2(-(R.Y[i] - R.Y[i - 1]), R.X[i] - R.X[i - 1]); const X = sx(x), Y = sy(y);
+      if (X > -10 && X < view.w + 10 && Y > -10 && Y < view.h + 10) { c.save(); c.translate(X, Y); c.rotate(ang);
+        c.beginPath(); c.moveTo(-3.5 * z, -4.5 * z); c.lineTo(3 * z, 0); c.lineTo(-3.5 * z, 4.5 * z);
+        c.strokeStyle = COLORS['--casing']; c.lineWidth = 4.2 * z; c.stroke(); c.strokeStyle = rampColor(next / total, cur != null && next > cur ? .35 : 1); c.lineWidth = 2 * z; c.stroke(); c.restore(); }
+      next += every;
+    }
+  }
+  if (view.scale > 0.035) {
+    let m = M_PER_MI, k = 1, idx = 1; const stepMi = view.scale > 0.08 ? 1 : 2;
+    while (m < total) { while (idx < n && R.D[idx] < m) idx++; if (idx >= n) break;
+      const t = (m - R.D[idx - 1]) / ((R.D[idx] - R.D[idx - 1]) || 1); const X = sx(R.X[idx - 1] + t * (R.X[idx] - R.X[idx - 1])), Y = sy(R.Y[idx - 1] + t * (R.Y[idx] - R.Y[idx - 1]));
+      if (k % stepMi === 0) { c.beginPath(); c.arc(X, Y, 8.5, 0, 7); c.fillStyle = COLORS['--casing']; c.fill(); c.lineWidth = 1.6; c.strokeStyle = rampColor(m / total); c.stroke();
+        c.fillStyle = COLORS['--map-ink']; c.font = '600 10.5px "IBM Plex Mono", monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(k), X, Y + .5); }
+      m += M_PER_MI; k++; }
+  }
+  // playback comet
+  if (cur != null) {
+    const [x, y, idx] = routeAt(cur); const tail = 350;
+    c.save(); c.lineCap = 'round';
+    for (let k = idx; k > 0 && R.D[k] > cur - tail; k--) { const a = 1 - (cur - R.D[k]) / tail;
+      c.beginPath(); c.moveTo(sx(R.X[k]), sy(R.Y[k])); c.lineTo(sx(R.X[k - 1]), sy(R.Y[k - 1])); c.strokeStyle = rampColor(cur / total, Math.max(0, a)); c.lineWidth = (4 + 6 * a) * z; c.stroke(); }
+    c.shadowColor = rampColor(cur / total); c.shadowBlur = 18; c.beginPath(); c.arc(sx(x), sy(y), 7.5, 0, 7); c.fillStyle = rampColor(cur / total); c.fill();
+    c.shadowBlur = 0; c.lineWidth = 2.5; c.strokeStyle = COLORS['--casing']; c.stroke(); c.restore();
+  }
+}
+function routeAt(d) { const R = S.route; let lo = 0, hi = R.D.length - 1; if (d <= 0) return [R.X[0], R.Y[0], 0];
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (R.D[m] <= d) lo = m; else hi = m; }
+  const t = (d - R.D[lo]) / ((R.D[hi] - R.D[lo]) || 1); return [R.X[lo] + t * (R.X[hi] - R.X[lo]), R.Y[lo] + t * (R.Y[hi] - R.Y[lo]), hi]; }
+function drawIssues(z) {
+  const c = ctx;
+  for (const is of ISSUES) { if (!S.issueShow.has(is.kind)) continue; const col = COLORS[ISSUE_KINDS[is.kind].color]; const focus = S.focusIssue === is;
+    c.strokeStyle = col; c.fillStyle = col;
+    if (is.kind === 'overlap') { pathSeg(NET.segs[is.seg], is.d0, is.d1); c.globalAlpha = focus ? .9 : .55; c.lineWidth = (focus ? 12 : 8) * z; c.stroke(); c.globalAlpha = 1; }
+    else if (is.kind === 'double') { c.beginPath(); is.pts.forEach(([x, y], i) => i ? c.lineTo(sx(x), sy(y)) : c.moveTo(sx(x), sy(y))); c.globalAlpha = focus ? .9 : .55; c.lineWidth = (focus ? 12 : 8) * z; c.stroke(); c.globalAlpha = 1; }
+    else if (is.kind === 'island' || is.kind === 'shared') { for (const id of is.segs) { pathSeg(NET.segs[id]); c.lineWidth = 5 * z; c.globalAlpha = .7; c.stroke(); } c.globalAlpha = 1; }
+    else if (is.kind === 'gap') { c.beginPath(); c.moveTo(sx(is.x), sy(is.y)); c.lineTo(sx(is.x2), sy(is.y2)); c.setLineDash([3, 3]); c.lineWidth = 2; c.stroke(); c.setLineDash([]);
+      c.beginPath(); c.arc(sx(is.x), sy(is.y), focus ? 10 : 7, 0, 7); c.lineWidth = 2.5; c.stroke(); }
+    else if (is.kind === 'dead') { c.beginPath(); c.arc(sx(is.x), sy(is.y), focus ? 8 : 5, 0, 7); c.lineWidth = 2; c.stroke(); c.beginPath(); c.arc(sx(is.x), sy(is.y), 1.8, 0, 7); c.fill(); }
+    else if (is.kind === 'sliver') { const X = sx(is.x), Y = sy(is.y), r = focus ? 8 : 5; c.beginPath(); c.moveTo(X, Y - r); c.lineTo(X + r, Y); c.lineTo(X, Y + r); c.lineTo(X - r, Y); c.closePath(); c.lineWidth = 2; c.stroke(); }
+  }
+}
+function updateScale() {
+  const target = 110 / view.scale; const opts = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000].map(m => m / FT_PER_M * 1).concat([0.25, 0.5, 1, 2].map(x => x * M_PER_MI));
+  const ftOpts = [50, 100, 200, 500, 1000, 2000].map(f => [f / FT_PER_M, f + ' ft']).concat([[0.25 * M_PER_MI, '¼ mi'], [0.5 * M_PER_MI, '½ mi'], [M_PER_MI, '1 mi'], [2 * M_PER_MI, '2 mi']]);
+  let best = ftOpts[0]; for (const o of ftOpts) if (o[0] <= target) best = o;
+  $('scale-bar').style.width = (best[0] * view.scale) + 'px'; $('scale-l').textContent = best[1];
+}
+
+// ---------- topo basemap (GitHub Pages build only; Claude pages cannot load outside images) ----------
+const tiles = new Map();
+function drawTiles() {
+  const c = ctx, z = Math.max(3, Math.min(16, Math.round(Math.log2(156543.03 * Math.cos(NET.lat0 * Math.PI / 180) * view.scale)))), N = 2 ** z;
+  const [lonW, latN] = NET.toLL(wx(0), wy(0)), [lonE, latS] = NET.toLL(wx(view.w), wy(view.h));
+  const tx = lon => Math.floor((lon + 180) / 360 * N), ty = lat => { const r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * N); };
+  const lonOf = x => x / N * 360 - 180, latOf = y => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / N))) * 180 / Math.PI;
+  const bg = COLORS['--map-bg'], dark = /^#/.test(bg) && parseInt(bg.slice(1, 3), 16) < 80;
+  c.save(); if (dark) c.filter = 'invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.85) saturate(0.6)';
+  for (let x = tx(lonW); x <= tx(lonE); x++) for (let y = ty(latN); y <= ty(latS); y++) {
+    const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`;
+    let img = tiles.get(url);
+    if (!img) { img = new Image(); img.onload = () => draw(); img.src = url; tiles.set(url, img); if (tiles.size > 600) tiles.delete(tiles.keys().next().value); }
+    if (!img.complete || !img.naturalWidth) continue;
+    const X0 = sx(lonOf(x) * NET.KX), X1 = sx(lonOf(x + 1) * NET.KX), Y0 = sy(latOf(y) * NET.KY), Y1 = sy(latOf(y + 1) * NET.KY);
+    c.drawImage(img, X0, Y0, X1 - X0 + 0.6, Y1 - Y0 + 0.6);
+  }
+  c.restore();
+  c.globalAlpha = 0.3; c.fillStyle = bg; c.fillRect(0, 0, view.w, view.h); c.globalAlpha = 1; // soften so trails stand out
+}
+// ======================================================================
+//  Map interaction
+// ======================================================================
+const pointers = new Map(); let gesture = null;
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+  const lassoMode = S.lasso || (e.shiftKey ? 'add' : e.altKey ? 'rem' : null);
+  if (pointers.size === 1 && lassoMode && !S.pick && S.tab === 'plan') { gesture = { type: 'lasso', mode: lassoMode }; S.lassoPath = [[e.offsetX, e.offsetY]]; return; }
+  if (pointers.size === 1) gesture = { type: 'pan', x: e.offsetX, y: e.offsetY, cx: view.cx, cy: view.cy, moved: 0 };
+  else if (pointers.size === 2) { const [a, b] = [...pointers.values()]; gesture = { type: 'pinch', d: Math.hypot(a.x - b.x, a.y - b.y), scale: view.scale, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, wx: wx((a.x + b.x) / 2), wy: wy((a.y + b.y) / 2) }; S.lassoPath = null; }
+});
+cv.addEventListener('pointermove', e => {
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+  if (!gesture) { hoverAt(e.offsetX, e.offsetY, e.pointerType); return; }
+  if (gesture.type === 'lasso') { S.lassoPath.push([e.offsetX, e.offsetY]); draw(); return; }
+  if (gesture.type === 'pan') { const dx = e.offsetX - gesture.x, dy = e.offsetY - gesture.y; gesture.moved = Math.max(gesture.moved, Math.hypot(dx, dy));
+    if (gesture.moved > 4) { cv.classList.add('dragging'); view.cx = gesture.cx - dx / view.scale; view.cy = gesture.cy + dy / view.scale; hideTip(); draw(); } }
+  else if (gesture.type === 'pinch' && pointers.size === 2) { const [a, b] = [...pointers.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+    view.scale = clampScale(gesture.scale * d / gesture.d); const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    view.cx = gesture.wx - (mx - view.w / 2) / view.scale; view.cy = gesture.wy + (my - view.h / 2) / view.scale; draw(); }
+});
+const endPointer = e => {
+  pointers.delete(e.pointerId); cv.classList.remove('dragging');
+  if (!gesture) return;
+  if (gesture.type === 'lasso') { finishLasso(gesture.mode); gesture = null; return; }
+  if (gesture.type === 'pan' && gesture.moved <= 4 && e.type === 'pointerup') clickAt(e.offsetX, e.offsetY, e.pointerType);
+  if (pointers.size === 0) gesture = null;
+  else if (gesture.type === 'pinch') { const [p] = [...pointers.values()]; gesture = { type: 'pan', x: p.x, y: p.y, cx: view.cx, cy: view.cy, moved: 99 }; }
+};
+cv.addEventListener('pointerup', endPointer); cv.addEventListener('pointercancel', endPointer);
+cv.addEventListener('pointerleave', () => { if (!gesture) { S.hover = null; hideTip(); draw(); } });
+const clampScale = s => Math.max(0.004, Math.min(8, s));
+function zoomAt(px, py, f) { const X = wx(px), Y = wy(py); view.scale = clampScale(view.scale * f); view.cx = X - (px - view.w / 2) / view.scale; view.cy = Y + (py - view.h / 2) / view.scale; draw(); }
+cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.offsetX, e.offsetY, Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0018))); }, { passive: false });
+cv.addEventListener('dblclick', e => zoomAt(e.offsetX, e.offsetY, 2));
+$('zin').onclick = () => zoomAt(view.w / 2, view.h / 2, 1.6); $('zout').onclick = () => zoomAt(view.w / 2, view.h / 2, 1 / 1.6);
+$('fit').onclick = () => { if (S.route && S.tab === 'plan') fitBounds(routeBounds()); else fitAll(); };
+function routeBounds() { const R = S.route; return { minx: Math.min(...R.X), maxx: Math.max(...R.X), miny: Math.min(...R.Y), maxy: Math.max(...R.Y) }; }
+function hitSeg(px, py, touch) { const r = (touch ? 16 : 9) / view.scale; const h = NET.nearestSeg(wx(px), wy(py), r); return h ? h.seg : null; }
+function hoverAt(px, py, ptype) {
+  if (ptype !== 'mouse' || !NET) return;
+  const h = S.pick ? null : hitSeg(px, py, false);
+  if (h !== S.hover) { S.hover = h; draw(); }
+  if (h == null) return hideTip();
+  const s = NET.segs[h], f = NET.features[s.fid];
+  const trailLen = NET.segs.filter(q => q.fids.includes(s.fid)).reduce((t, q) => t + q.len, 0);
+  let extra = '';
+  if (NET.hasZ) extra = ` · ↑${fmtFt(s.gainF)} ↓${fmtFt(s.lossF)} ft`;
+  const alt = f.name && f.label && f.name !== f.label ? `<span>also “${esc(f.name)}”</span><br>` : '';
+  const types = [...new Set(s.fids.map(i => typeLabel(NET.features[i].type)))].join(' + ');
+  showTip(px, py, `<b>${esc(s.name)}</b>${alt}<span>${esc(types)} · piece ${fmtLen(s.len)}${s.shared ? '' : ` of ${fmtLen(trailLen)}`}${extra}</span>`);
+}
+function showTip(px, py, html) { const t = $('tip'); t.innerHTML = html; t.hidden = false; const w = t.offsetWidth, h = t.offsetHeight;
+  t.style.left = Math.min(view.w - w - 8, px + 14) + 'px'; t.style.top = Math.max(8, py - h - 10) + 'px'; }
+function hideTip() { $('tip').hidden = true; }
+function nearestNode(px, py) { const X = wx(px), Y = wy(py); let best = 0, bd = Infinity;
+  // with link trails off, snap to a junction on the picked trails
+  let ok = null; if (!S.allowLinks && S.selected.size) { ok = new Set(); for (const i of S.selected) { ok.add(NET.segs[i].a); ok.add(NET.segs[i].b); } }
+  NET.nodes.forEach((n, i) => { if (ok && !ok.has(i)) return; const d = (n.x - X) ** 2 + (n.y - Y) ** 2; if (d < bd) { bd = d; best = i; } }); return best; }
+function clickAt(px, py, ptype) {
+  if (!NET) return;
+  if (S.pick) { const n = nearestNode(px, py); if (S.pick === 'start') S.start = n; else S.end = n; S.pick = null; updatePickUI(); scheduleSolve(); draw(); return; }
+  if (S.tab === 'check') { const h = hitSeg(px, py, ptype !== 'mouse'); if (h == null) return; const is = ISSUES.find(i => S.issueShow.has(i.kind) && i.segs.includes(h)); if (is) focusIssue(is, false); return; }
+  const h = hitSeg(px, py, ptype !== 'mouse'); if (h == null) return;
+  const ids = S.clickMode === 'trail' ? NET.segs.filter(s => s.fids.includes(NET.segs[h].fid)).map(s => s.id) : [h];
+  setSel(ids, !S.selected.has(h));
+}
+function finishLasso(mode) {
+  const P = S.lassoPath; S.lassoPath = null;
+  if (!P || P.length < 3) { draw(); return; }
+  const inside = (x, y) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, yi] = P[i], [xj, yj] = P[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+  const ids = [];
+  for (const s of NET.segs) { let inn = 0; const n = s.xs.length; for (let i = 0; i < n; i++) if (inside(sx(s.xs[i]), sy(s.ys[i]))) inn++; if (inn / n >= 0.5) ids.push(s.id); }
+  if (ids.length) setSel(ids, mode === 'add'); else draw();
+}
+// toolbar
+function setLasso(m) { S.lasso = S.lasso === m ? null : m; $('lasso-add').setAttribute('aria-pressed', S.lasso === 'add'); $('lasso-rem').setAttribute('aria-pressed', S.lasso === 'rem'); cv.classList.toggle('lasso', !!S.lasso); }
+$('lasso-add').onclick = () => setLasso('add'); $('lasso-rem').onclick = () => setLasso('rem');
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (S.pick) { S.pick = null; updatePickUI(); } if (S.lasso) setLasso(S.lasso); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !/INPUT|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); undo(); } });
+
+// ======================================================================
+//  Panel wiring
+// ======================================================================
+function undo() { if (!S.undo.length) return; S.selected = S.undo.pop(); selectionChanged(); }
+$('undo').onclick = undo;
+$('clear').onclick = () => { if (S.selected.size) setSel([...S.selected], false); };
+$('invert').onclick = () => { pushUndo(); const nxt = new Set(NET.segs.map(s => s.id).filter(i => !S.selected.has(i))); S.selected = nxt; selectionChanged(); };
+function segBtns(id, cb) { $(id).querySelectorAll('button').forEach(b => b.onclick = () => { $(id).querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); cb(b.dataset.v); }); }
+segBtns('clickmode', v => { S.clickMode = v; });
+segBtns('endmode', v => { S.endMode = v; $('end-row').hidden = v !== 'point'; if (v === 'point' && S.end == null) beginPick('end'); else scheduleSolve(); });
+$('types').addEventListener('click', e => { const r = e.target.closest('.type-row'); if (r) toggleGroup(TYPE_SEGS.get(r.dataset.type)); });
+$('types').addEventListener('keydown', e => { const r = e.target.closest('.type-row'); if (r && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); toggleGroup(TYPE_SEGS.get(r.dataset.type)); } });
+$('names').addEventListener('click', e => { const r = e.target.closest('.name-row'); if (r && r.dataset.name) toggleGroup(NAME_SEGS.get(r.dataset.name)); });
+$('names').addEventListener('keydown', e => { const r = e.target.closest('.name-row'); if (r && r.dataset.name && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); toggleGroup(NAME_SEGS.get(r.dataset.name)); } });
+$('names').addEventListener('mouseover', e => { const r = e.target.closest('.name-row'); const ids = r && r.dataset.name ? NAME_SEGS.get(r.dataset.name) : null; S.hover = ids ? ids[0] : null; draw(); });
+$('names').addEventListener('mouseleave', () => { S.hover = null; draw(); });
+$('search').addEventListener('input', renderNameList);
+$('opt-val').addEventListener('input', () => { S.optVal = $('opt-val').value; updateSelectionUI(); scheduleSolve(); draw(); });
+$('allow-links').addEventListener('change', e => { S.allowLinks = e.target.checked; scheduleSolve(); draw(); });
+$('opt-unit').addEventListener('change', () => { S.optUnit = $('opt-unit').value; updateSelectionUI(); scheduleSolve(); draw(); });
+$('pace').addEventListener('input', () => { const m = $('pace').value.trim().match(/^(\d+)(?::(\d{1,2}))?$/); if (m) { S.pace = +m[1] + (m[2] ? +m[2] / 60 : 0); renderResult(true); } });
+function beginPick(which) { S.pick = which; updatePickUI(); }
+function updatePickUI() {
+  $('banner').hidden = !S.pick; $('banner-t').textContent = S.pick === 'start' ? 'Tap the map where you want to start' : 'Tap the map where you want to finish';
+  cv.classList.toggle('pick', !!S.pick);
+  $('start-label').textContent = S.start != null ? 'Start set · change' : 'Choose start on map'; $('clear-start').hidden = S.start == null;
+  $('end-label').textContent = S.end != null ? 'Finish set · change' : 'Choose finish on map';
+}
+$('pick-start').onclick = () => beginPick('start'); $('pick-end').onclick = () => beginPick('end');
+$('clear-start').onclick = () => { S.start = null; updatePickUI(); scheduleSolve(); };
+$('banner-x').onclick = () => { S.pick = null; updatePickUI(); if (S.endMode === 'point' && S.end == null) { $('endmode').querySelector('[data-v="loop"]').click(); } };
+function setTab(t) { S.tab = t; $('tab-plan').setAttribute('aria-selected', t === 'plan'); $('tab-check').setAttribute('aria-selected', t === 'check');
+  $('pane-plan').hidden = t !== 'plan'; $('pane-check').hidden = t !== 'check'; stopPlay(); if (t === 'plan') S.cursorD = null; S.hover = null; draw(); }
+if (STANDALONE) { $('basemap').hidden = false; $('attrib').hidden = false; $('basemap').onclick = () => { S.basemap = !S.basemap; $('basemap').setAttribute('aria-pressed', S.basemap); $('attrib').hidden = !S.basemap; draw(); }; }
+$('tab-plan').onclick = () => setTab('plan'); $('tab-check').onclick = () => setTab('check');
+
+// ======================================================================
+//  Result panel: stats, elevation profile, playback, turn list, export
+// ======================================================================
+function fmtTime(min) { const h = Math.floor(min / 60), m = Math.round(min % 60); return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m} min`; }
+function renderResult(statsOnly) {
+  const box = $('result');
+  if (S.error) {
+    box.innerHTML = `<div class="err">${esc(S.error)}</div>` + (S.suggest && S.suggest.segs.length ? `<div class="row" style="margin-top:10px"><button class="btn primary" id="add-joins">Add the ${S.suggest.segs.length} joining piece${S.suggest.segs.length === 1 ? '' : 's'}</button><button class="btn" id="show-joins">Show me where</button></div>` : '');
+    if ($('add-joins')) { $('add-joins').onclick = () => setSel(S.suggest.segs, true);
+      $('show-joins').onclick = () => { const ss = S.suggest.segs.map(i => NET.segs[i]); fitBounds({ minx: Math.min(...ss.map(s => s.minx)) - 150, maxx: Math.max(...ss.map(s => s.maxx)) + 150, miny: Math.min(...ss.map(s => s.miny)) - 150, maxy: Math.max(...ss.map(s => s.maxy)) + 150 }); }; }
+    return; }
+  const R = S.route;
+  if (!R) { box.innerHTML = `<div class="empty">Pick at least one trail and the shortest route that covers all of it appears here and on the map.</div>`; $('solve-time').textContent = ''; return; }
+  const pctNew = R.total ? R.newLen / R.total * 100 : 0;
+  const repeatLen = R.steps.filter(s => s.status === 'repeat').reduce((t, s) => t + s.d1 - s.d0, 0);
+  const linkLen = R.extra - repeatLen;
+  const minutes = R.total / M_PER_MI * S.pace;
+  const statsHtml = `<div class="stats">
+    <div class="stat hero"><div><div class="k">Total distance</div><div class="v">${fmtMi(R.total)}<small>mi</small></div><div class="s">${(R.total / 1000).toFixed(2)} km · ~${fmtTime(minutes)} at ${$('pace').value}/mi</div></div>
+      <div class="eff"><div class="k" style="font:600 11.5px var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)">${Math.round(pctNew)}% new trail</div>
+      <div class="eff-bar" aria-hidden="true"><i style="width:${pctNew}%;background:var(--ok)"></i><i style="width:${repeatLen / R.total * 100}%;background:var(--warn)"></i><i style="width:${linkLen / R.total * 100}%;background:var(--faint)"></i></div></div></div>
+    <div class="stat"><div class="k">Your trails</div><div class="v">${fmtMi(R.newLen)}<small>mi</small></div><div class="s">${R.steps.filter(s => s.status === 'new').length} pieces</div></div>
+    <div class="stat"><div class="k">Extra</div><div class="v">${fmtMi(R.extra)}<small>mi</small></div><div class="s">${fmtMi(repeatLen)} repeat · ${fmtMi(linkLen)} link</div></div>
+    <div class="stat"><div class="k">Climb</div>${R.hasZ ? `<div class="v">${fmtFt(R.gain)}<small>ft</small></div><div class="s">↓ ${fmtFt(R.loss)} ft descent</div>` : `<div class="v" style="color:var(--faint)">—</div><div class="s">no elevation in data</div>`}</div>
+    <div class="stat"><div class="k">Start → finish</div><div class="v" style="font-size:20px;padding-top:5px">${R.start === R.end ? 'Loop' : 'One-way'}</div><div class="s">${R.legs.length} legs</div></div>
+  </div>`;
+  if (statsOnly && box.querySelector('.stats')) { box.querySelector('.stats').outerHTML = statsHtml; return; }
+  box.innerHTML = `<div class="result">${statsHtml}
+    <div class="profile-wrap"><div class="profile-head"><span class="k">${R.hasZ ? 'Elevation (ft) and coverage' : 'Coverage along the route'}</span><span class="readout" id="readout">drag to scrub</span></div>
+      <svg class="profile" id="profile" role="img" aria-label="Elevation profile of the route"></svg>
+      <div class="legend-strip"><span><i style="background:var(--ok)"></i>new trail</span><span><i style="background:var(--warn)"></i>repeat</span><span><i style="background:var(--faint)"></i>link (not selected)</span></div></div>
+    <div class="player"><button class="btn primary" id="play" aria-label="Play route">▶ Play</button><input type="range" id="scrub" min="0" max="${Math.round(R.total)}" value="0" step="1" aria-label="Position along route"></div>
+    <div class="row"><button class="btn" id="gpx">Download GPX</button><button class="btn" id="copygpx">Copy GPX</button><button class="btn ghost" id="zoomroute">Zoom to route</button></div>
+    <div class="legs" id="legs">${R.legs.map((l, i) => `<div class="leg" data-i="${i}"><span class="at">${fmtMi(l.d0)}</span><span class="nm">${esc(l.name)}<span class="tag ${l.status}">${l.status === 'link' ? 'link' : l.status}</span></span><span class="d">${fmtLen(l.d1 - l.d0)}</span></div>`).join('')}</div>
+  </div>`;
+  drawProfile();
+  $('play').onclick = togglePlay; $('scrub').oninput = e => { stopPlay(); setCursor(+e.target.value); };
+  $('zoomroute').onclick = () => fitBounds(routeBounds());
+  $('gpx').onclick = downloadGPX; $('copygpx').onclick = copyGPX;
+  $('legs').onclick = e => { const r = e.target.closest('.leg'); if (!r) return; const l = R.legs[+r.dataset.i]; stopPlay(); setCursor(l.d0 + 1);
+    const ids = l.steps.map(s => s.seg); const segs = ids.map(i => NET.segs[i]); fitBounds({ minx: Math.min(...segs.map(s => s.minx)), maxx: Math.max(...segs.map(s => s.maxx)), miny: Math.min(...segs.map(s => s.miny)), maxy: Math.max(...segs.map(s => s.maxy)) }, 90); };
+}
+function drawProfile() {
+  const R = S.route, svg = $('profile'); if (!svg) return;
+  const W = svg.clientWidth || 340, H = 150, padL = R.hasZ ? 38 : 8, padR = 8, padT = 10, stripH = 8, padB = 22 + stripH + 4;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const X = d => padL + d / R.total * (W - padL - padR);
+  let body = '';
+  if (R.hasZ) {
+    const zs = R.Z.map(z => z * FT_PER_M); let zmin = Math.min(...zs), zmax = Math.max(...zs); const span = Math.max(40, zmax - zmin);
+    const nice = [10, 20, 25, 50, 100, 200, 250, 500].find(s => span / s <= 4) || 1000; zmin = Math.floor(zmin / nice) * nice; zmax = Math.ceil(zmax / nice) * nice;
+    const Y = z => padT + (1 - (z - zmin) / (zmax - zmin)) * (H - padT - padB);
+    for (let v = zmin; v <= zmax; v += nice) body += `<line x1="${padL}" x2="${W - padR}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" /><text x="${padL - 5}" y="${Y(v) + 3.5}" text-anchor="end" font-size="10" font-family="var(--font-mono)" fill="var(--muted)">${v}</text>`;
+    // decimate for drawing
+    const stepPx = Math.max(1, Math.floor(R.D.length / (W * 1.5))); let line = '';
+    for (let i = 0; i < R.D.length; i += stepPx) line += `${i ? 'L' : 'M'}${X(R.D[i]).toFixed(1)},${Y(zs[i]).toFixed(1)}`;
+    line += `L${X(R.total).toFixed(1)},${Y(zs[zs.length - 1]).toFixed(1)}`;
+    body += `<defs><linearGradient id="pg" x1="0" x2="1" y1="0" y2="0">${[0, .5, 1].map(t => `<stop offset="${t}" stop-color="${rampColor(t)}"/>`).join('')}</linearGradient></defs>`;
+    body += `<path d="${line}L${X(R.total)},${H - padB}L${X(0)},${H - padB}Z" fill="url(#pg)" opacity=".22"/><path d="${line}" fill="none" stroke="url(#pg)" stroke-width="2"/>`;
+    svg._Y = Y; svg._zs = zs;
+  } else {
+    body += `<text x="${W / 2}" y="${(H - padB) / 2 + 4}" text-anchor="middle" font-size="12" fill="var(--muted)">Add Z values to the export to see the climb profile</text>`;
+  }
+  // coverage strip
+  const sy0 = H - padB + 4;
+  for (const st of R.steps) body += `<rect x="${X(st.d0).toFixed(2)}" y="${sy0}" width="${Math.max(.6, X(st.d1) - X(st.d0)).toFixed(2)}" height="${stripH}" fill="var(${st.status === 'new' ? '--ok' : st.status === 'repeat' ? '--warn' : '--faint'})"/>`;
+  // mile ticks
+  const miT = R.total / M_PER_MI; const tick = miT > 30 ? 5 : miT > 12 ? 2 : miT > 5 ? 1 : 0.5;
+  for (let m = 0; m <= miT + 1e-9; m += tick) body += `<text x="${X(m * M_PER_MI)}" y="${H - 4}" text-anchor="middle" font-size="10" font-family="var(--font-mono)" fill="var(--muted)">${m}${m === 0 ? ' mi' : ''}</text>`;
+  body += `<g id="pcur" style="display:none"><line id="pcl" y1="${padT}" y2="${H - padB + stripH + 4}" stroke="var(--fg)" stroke-width="1"/><circle id="pcd" r="4" fill="var(--fg)" stroke="var(--raised)" stroke-width="1.5"/></g>`;
+  svg.innerHTML = body; svg._X = X; svg._W = W; svg._padL = padL; svg._padR = padR;
+  const toD = e => { const r = svg.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width * W; return Math.max(0, Math.min(R.total, (px - padL) / (W - padL - padR) * R.total)); };
+  svg.onpointerdown = e => { svg.setPointerCapture(e.pointerId); stopPlay(); setCursor(toD(e)); svg._drag = true; };
+  svg.onpointermove = e => { if (svg._drag || e.pointerType === 'mouse') { if (!svg._drag && S.playing) return; setCursor(toD(e)); } };
+  svg.onpointerup = () => { svg._drag = false; };
+  svg.onpointerleave = () => { if (!svg._drag && !S.playing && S.cursorD != null && !$('scrub').matches(':active')) { /* keep cursor where it is */ } };
+  if (S.cursorD != null) setCursor(S.cursorD);
+}
+function setCursor(d) {
+  const R = S.route; if (!R) return; S.cursorD = d; draw();
+  const svg = $('profile'); if (svg && svg._X) { const g = svg.querySelector('#pcur'); g.style.display = ''; const x = svg._X(d);
+    svg.querySelector('#pcl').setAttribute('x1', x); svg.querySelector('#pcl').setAttribute('x2', x);
+    const idx = routeAt(d)[2]; const cd = svg.querySelector('#pcd');
+    if (R.hasZ) { cd.setAttribute('cx', x); cd.setAttribute('cy', svg._Y(svg._zs[idx])); cd.style.display = ''; } else cd.style.display = 'none'; }
+  const sc = $('scrub'); if (sc && document.activeElement !== sc) sc.value = Math.round(d);
+  const idx = routeAt(d)[2]; const st = R.steps[R.STEP[idx]];
+  const li = R.legs.findIndex(l => d >= l.d0 && d <= l.d1);
+  document.querySelectorAll('.leg').forEach((el, i) => el.classList.toggle('cur', i === li));
+  const nm = st ? NET.segs[st.seg].name : '';
+  if ($('readout')) $('readout').textContent = `${fmtMi(d)} mi${R.hasZ ? ` · ${Math.round(R.Z[idx] * FT_PER_M)} ft` : ''} · ${nm}`;
+}
+let raf = null, lastT = 0;
+function togglePlay() { S.playing ? stopPlay() : startPlay(); }
+function startPlay() { const R = S.route; if (!R) return; if (S.cursorD == null || S.cursorD >= R.total - 1) S.cursorD = 0; S.playing = true; $('play').textContent = '❚❚ Pause'; lastT = performance.now();
+  const dur = Math.max(14, Math.min(50, R.total / M_PER_MI * 1.3)) * 1000; const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tick = now => { if (!S.playing) return; const dt = now - lastT; lastT = now; let d = S.cursorD + R.total * dt / dur * (reduce ? 3 : 1);
+    if (d >= R.total) { d = R.total; setCursor(d); stopPlay(); return; } setCursor(d); raf = requestAnimationFrame(tick); };
+  raf = requestAnimationFrame(tick); }
+function stopPlay() { S.playing = false; cancelAnimationFrame(raf); const b = $('play'); if (b) b.textContent = '▶ Play'; }
+
+// ---------- GPX / downloads ----------
+function routeGPX() {
+  const R = S.route; const pts = [];
+  for (let i = 0; i < R.X.length; i++) { const [lon, lat] = NET.toLL(R.X[i], R.Y[i]); pts.push(`<trkpt lat="${lat.toFixed(7)}" lon="${lon.toFixed(7)}">${R.Z[i] != null ? `<ele>${R.Z[i].toFixed(1)}</ele>` : ''}</trkpt>`); }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Bicentennial Trail Planner" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>Trail route ${fmtMi(R.total)} mi</name></metadata>\n<trk><name>Trail route ${fmtMi(R.total)} mi</name><trkseg>\n${pts.join('\n')}\n</trkseg></trk>\n</gpx>\n`;
+}
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function zipOne(name, text) { // store-only zip with a single file
+  const data = new TextEncoder().encode(text), nm = new TextEncoder().encode(name); let crc = 0xFFFFFFFF; for (const b of data) crc = CRC[(crc ^ b) & 255] ^ (crc >>> 8); crc = (crc ^ 0xFFFFFFFF) >>> 0;
+  const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, nm.length, true);
+  const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, nm.length, true);
+  const off = 30 + nm.length + data.length;
+  const eo = new DataView(new ArrayBuffer(22)); eo.setUint32(0, 0x06054b50, true); eo.setUint16(8, 1, true); eo.setUint16(10, 1, true); eo.setUint32(12, 46 + nm.length, true); eo.setUint32(16, off, true);
+  return new Blob([lh, nm, data, ch, nm, eo], { type: 'application/zip' });
+}
+async function saveFile(name, text, note) {
+  // Inside Claude the page must ask through the downloads capability (GPX/GeoJSON travel inside a .zip); elsewhere a normal download works.
+  if (window.claude && window.claude.use) {
+    const dl = await window.claude.use('downloads');
+    if (dl) { try { await dl.save({ filename: name.replace(/\.[^.]+$/, '') + '.zip', data: zipOne(name, text) }); flash(note || 'Saved'); } catch (e) { if (e && e.code !== 'declined') flash('Could not save here. Use Copy instead.'); } return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text])); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+function downloadGPX() { saveFile(`trail-route-${fmtMi(S.route.total)}mi.gpx`, routeGPX(), 'Saved. Unzip it to get the .gpx file.'); }
+async function copyGPX() { const txt = routeGPX(); try { await navigator.clipboard.writeText(txt); flash('GPX copied. Paste it into a text file named route.gpx'); } catch { flash('Copy was blocked in this view'); } }
+function flash(msg) { const b = $('banner'); $('banner-t').textContent = msg; $('banner-x').hidden = true; b.hidden = false; clearTimeout(flash.t); flash.t = setTimeout(() => { b.hidden = !S.pick; $('banner-x').hidden = false; updatePickUI(); }, msg.length > 90 ? 8000 : 3200); }
+
+// ======================================================================
+//  Data check panel
+// ======================================================================
+function renderIssues() {
+  $('issue-count').textContent = ISSUES.filter(i => !['dead', 'shared', 'sliver'].includes(i.kind)).length;
+  const counts = {}; for (const i of ISSUES) counts[i.kind] = (counts[i.kind] || 0) + 1;
+  $('cats').innerHTML = Object.entries(ISSUE_KINDS).filter(([k]) => counts[k] || (k !== 'island' && k !== 'shared')).map(([k, v]) => `<button class="cat" data-k="${k}" aria-pressed="${S.issueShow.has(k)}">
+    <span class="ic"><span class="dot" style="background:var(${v.color})"></span></span><span class="t">${v.label}<small>${v.sub}</small></span><span class="c">${counts[k] || 0}</span><span></span></button>`).join('');
+  const order = { gap: 0, island: 1, overlap: 2, double: 3, sliver: 4, dead: 5, shared: 6 };
+  const list = ISSUES.filter(i => S.issueShow.has(i.kind)).sort((a, b) => order[a.kind] - order[b.kind] || b.len - a.len);
+  $('issue-filter-note').textContent = `${list.length} shown`;
+  $('issues').innerHTML = list.length ? list.map(i => `<button class="issue" data-i="${ISSUES.indexOf(i)}"><span class="dot" style="background:var(${ISSUE_KINDS[i.kind].color})"></span><span class="nm">${esc(i.title)}<br><small>${esc(i.detail)}</small></span><span class="d">${i.len ? fmtLen(i.len) : ''}</span></button>`).join('')
+    : `<div class="empty" style="border:0">Nothing in the shown categories. Nice and clean.</div>`;
+}
+$('cats').addEventListener('click', e => { const b = e.target.closest('.cat'); if (!b) return; const k = b.dataset.k; S.issueShow.has(k) ? S.issueShow.delete(k) : S.issueShow.add(k); renderIssues(); draw(); });
+$('issues').addEventListener('click', e => { const b = e.target.closest('.issue'); if (b) focusIssue(ISSUES[+b.dataset.i], true); });
+function issueBounds(is) {
+  const xs = [], ys = [];
+  if (is.kind === 'double') is.pts.forEach(p => { xs.push(p[0]); ys.push(p[1]); });
+  else if (is.kind === 'overlap') { const s = NET.segs[is.seg]; for (let d = is.d0; d <= is.d1; d += 4) { const [x, y] = pointAt(s, d); xs.push(x); ys.push(y); } }
+  else if (is.kind === 'island' || is.kind === 'shared') is.segs.forEach(i => { const s = NET.segs[i]; xs.push(s.minx, s.maxx); ys.push(s.miny, s.maxy); });
+  else { xs.push(is.x); ys.push(is.y); if (is.x2 != null) { xs.push(is.x2); ys.push(is.y2); } }
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2, r = Math.max(60, (Math.max(...xs) - Math.min(...xs)) / 2 + 40, (Math.max(...ys) - Math.min(...ys)) / 2 + 40);
+  return { minx: cx - r, maxx: cx + r, miny: cy - r, maxy: cy + r };
+}
+function focusIssue(is, zoom) { S.focusIssue = is; if (zoom) fitBounds(issueBounds(is), 30);
+  document.querySelectorAll('.issue').forEach(el => el.classList.toggle('cur', ISSUES[+el.dataset.i] === is)); draw(); }
+$('rerun').onclick = () => { ISSUES = runChecks(NET, readTol()); S.focusIssue = null; renderIssues(); draw(); };
+$('export-issues').onclick = () => {
+  const ll = (x, y) => NET.toLL(x, y).map(v => +v.toFixed(7));
+  const feats = ISSUES.map(is => { let geom;
+    if (is.kind === 'overlap') { const s = NET.segs[is.seg], c = []; for (let d = is.d0; d <= is.d1 + 0.01; d += 4) c.push(ll(...pointAt(s, d))); geom = { type: 'LineString', coordinates: c }; }
+    else if (is.kind === 'double') geom = { type: 'LineString', coordinates: is.pts.map(p => ll(p[0], p[1])) };
+    else if (is.kind === 'gap') geom = { type: 'LineString', coordinates: [ll(is.x, is.y), ll(is.x2, is.y2)] };
+    else if (is.kind === 'island' || is.kind === 'shared') geom = { type: 'MultiLineString', coordinates: is.segs.map(i => { const s = NET.segs[i]; return [...s.xs].map((x, k) => ll(x, s.ys[k])); }) };
+    else geom = { type: 'Point', coordinates: ll(is.x, is.y) };
+    return { type: 'Feature', properties: { issue: ISSUE_KINDS[is.kind].label, title: is.title, detail: is.detail, length_m: +(is.len || 0).toFixed(1) }, geometry: geom }; });
+  saveFile('trail_issues.geojson', JSON.stringify({ type: 'FeatureCollection', features: feats }), 'Saved. Unzip it, then run JSON To Features in Pro.');
+};
+// load new data
+function readFile(file) { const r = new FileReader(); r.onload = () => { try { const gj = JSON.parse(r.result); loadData(parseGeoJSON(gj), `Using ${file.name} (loaded ${new Date().toLocaleString()}).`); setTab('check');
+    if (undensify.last) setTimeout(() => flash(`This export had a vertex every ${undensify.last.spacing.toFixed(1)} m, so the extra points were removed (${undensify.last.before.toLocaleString()} → ${undensify.last.after.toLocaleString()}). Junctions were kept.`), 400); }
+  catch (e) { flash('That file could not be read: ' + e.message); } }; r.readAsText(file); }
+$('file').addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); });
+const drop = $('drop');
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) readFile(f); });
+
+// ======================================================================
+//  Boot
+// ======================================================================
+readColors();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); draw(); if (S.route) drawProfile(); });
+new MutationObserver(() => { readColors(); draw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+new ResizeObserver(() => { resize(); if (S.route) drawProfile(); }).observe($('mapwrap'));
+resize();
+// open in a working state: the ski trails as an example selection
+function example() { const ids = TYPE_SEGS.get('Ski_trails'); if (!ids) return; S.selected = new Set(ids); S.example = true; updateSelectionUI(); solveNow(); }
+if (TRAIL_DATA) { loadData(TRAIL_DATA, 'Using All_Trails_V4_vert2 (Nov 11, 2026) with lidar elevations from the ArcGIS Terrain service.'); example(); }
+else {
+  $('result').innerHTML = '<div class="empty">Loading trails…</div>';
+  fetch('trails.geojson', { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); S.dataDate = r.headers.get('last-modified'); return r.json(); })
+    .then(gj => { const raw = parseGeoJSON(gj); const d = S.dataDate ? new Date(S.dataDate).toLocaleDateString() : 'this site';
+      loadData(raw, `Using trails.geojson from this site (updated ${d}). To update it for everyone, replace that file in the GitHub repository.`); example(); })
+    .catch(e => { $('result').innerHTML = `<div class="err">Couldn't load trails.geojson (${esc(e.message)}). If you opened this file straight from your computer, browsers block that; use the GitHub Pages link, or drop the GeoJSON on the Data check tab.</div>`; });
+}
+</script>
+
+</body>
+</html>
